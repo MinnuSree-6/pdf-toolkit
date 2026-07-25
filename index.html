@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Toolkit — Real, Free PDF Tools</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+  :root{
+    --red:#e5322d; --red-dark:#c92823;
+    --ink:#22232a; --ink-soft:#6b6f76;
+    --bg:#fdf1f5; --card:#ffffff; --border:#f5dbe3;
+    --green:#3fa66a; --blue:#2a6fdb; --purple:#8b5ff0; --yellow:#e0a72b; --pink:#e0507d;
+  }
+  html{overflow-x:hidden;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{overflow-x:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  header{background:transparent;position:sticky;top:0;z-index:20;padding:16px 24px 20px;}
+  .nav-wrap{max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;gap:20px;background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,0.04);}
+  .logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:20px;color:var(--ink);white-space:nowrap;}
+  .logo svg{width:24px;height:24px;}
+  nav.links{display:flex;align-items:center;gap:26px;}
+  nav.links a{text-decoration:none;color:var(--ink);font-size:14px;font-weight:600;cursor:pointer;}
+  nav.links a:hover{color:var(--red);}
+  .auth{display:flex;align-items:center;gap:18px;}
+  .plan-badge{font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;background:#eaf6ee;color:var(--green);}
+  .plan-badge.free{background:#f1f1f1;color:var(--ink-soft);}
+  .auth a.upgrade{background:var(--red);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;cursor:pointer;}
+  .auth a.upgrade:hover{background:var(--red-dark);}
+  .auth a.login-link{font-size:14px;font-weight:600;color:var(--ink);text-decoration:none;cursor:pointer;}
+  .auth a.login-link:hover{color:var(--red);}
+  .auth a.signup-link{font-size:14px;font-weight:700;color:var(--red);text-decoration:none;cursor:pointer;border:1.5px solid var(--red);padding:9px 16px;border-radius:8px;}
+  .auth a.signup-link:hover{background:#fdeee8;}
+
+  .hero{max-width:900px;margin:56px auto 32px;text-align:center;padding:0 24px;}
+  .hero h1{font-size:36px;font-weight:800;line-height:1.2;margin-bottom:14px;}
+  .hero p{color:var(--ink-soft);font-size:15px;line-height:1.6;max-width:680px;margin:0 auto;}
+  .hero .usage-note{margin-top:14px;font-size:13px;color:var(--ink-soft);}
+
+  .grid{max-width:1280px;margin:32px auto 80px;padding:0 24px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;cursor:pointer;transition:transform .15s ease, box-shadow .15s ease;position:relative;}
+  .card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,0.06);}
+  .icon{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,0.08);}
+  .card h3{font-size:16px;font-weight:700;margin-bottom:8px;}
+  .card p{font-size:13px;color:var(--ink-soft);line-height:1.5;}
+  .badge{position:absolute;top:16px;right:16px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;}
+  .badge.live{background:#eaf6ee;color:var(--green);}
+  .badge.pro{background:#fdeee8;color:var(--red);}
+
+  .overlay{position:fixed;inset:0;background:rgba(20,20,20,0.55);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:16px;max-width:480px;width:100%;padding:28px;position:relative;}
+  .modal .close{position:absolute;top:16px;right:18px;cursor:pointer;font-size:20px;color:var(--ink-soft);background:none;border:none;}
+  .modal h2{font-size:20px;margin-bottom:6px;}
+  .modal p.sub{color:var(--ink-soft);font-size:13px;margin-bottom:18px;}
+  .dropzone{border:2px dashed var(--border);border-radius:12px;padding:26px;text-align:center;color:var(--ink-soft);font-size:13px;cursor:pointer;margin-bottom:16px;}
+  .dropzone:hover{border-color:var(--red);color:var(--red);}
+  .filelist{font-size:12px;color:var(--ink-soft);margin-bottom:14px;max-height:100px;overflow:auto;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;}
+  .field input[type=text]{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;}
+  .run-btn{width:100%;background:var(--ink);color:#fff;border:none;padding:13px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;}
+  .run-btn:hover{background:#000;}
+  .run-btn:disabled{background:#ccc;cursor:not-allowed;}
+  .status{margin-top:12px;font-size:13px;text-align:center;color:var(--ink-soft);}
+  .status.ok{color:var(--green);font-weight:600;}
+  .status.err{color:var(--red);font-weight:600;}
+
+  .pricing{background:#fff;text-align:center;}
+  .pricing .price-big{font-size:34px;font-weight:800;margin:10px 0 2px;}
+  .pricing .price-sub{font-size:12px;color:var(--ink-soft);margin-bottom:16px;}
+  .pricing ul{list-style:none;text-align:left;margin-bottom:20px;}
+  .pricing li{font-size:13px;padding:6px 0;color:var(--ink);}
+  .pricing li:before{content:"✓ ";color:var(--green);font-weight:800;}
+
+  @media (max-width:1300px){.grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
+  @media (max-width:1100px){.grid{grid-template-columns:repeat(3,minmax(0,1fr));}nav.links{display:none;}#pricingGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}}
+  @media (max-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));}.hero h1{font-size:26px;}#pricingGrid{grid-template-columns:minmax(0,1fr)!important;}}
+  @media (max-width:520px){
+    .nav-wrap{padding:12px 14px;gap:8px;}
+    .logo{font-size:16px;}
+    .plan-badge{display:none;}
+    .auth{gap:8px;}
+    .auth a.login-link{display:none;}
+    .auth a.signup-link{padding:8px 12px;font-size:13px;}
+    .auth a.upgrade{padding:8px 12px;font-size:13px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav-wrap">
+    <div class="logo">
+      <svg viewBox="0 0 32 29" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="heartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ff6a5c"/>
+            <stop offset="100%" stop-color="#e5322d"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#heartGrad)" d="M16 28.5C16 28.5 1 19.6 1 9.7 1 4.6 5 1 9.7 1c3 0 5.4 1.6 6.3 3.9C16.9 2.6 19.3 1 22.3 1 27 1 31 4.6 31 9.7 31 19.6 16 28.5 16 28.5Z"/>
+      </svg>
+      PDF Toolkit
+    </div>
+    <nav class="links">
+      <a onclick="scrollToTools()">Tools</a>
+      <a onclick="scrollToPricing()">Pricing</a>
+    </nav>
+    <div class="auth">
+      <span class="plan-badge free" id="planBadge">Free plan</span>
+      <a class="login-link" onclick="alert('Demo build — sign-in system not connected yet.')">Login</a>
+      <a class="signup-link" onclick="alert('Demo build — sign-up system not connected yet.')">Sign up</a>
+      <a class="upgrade" onclick="openUpgrade('pro')">Upgrade</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <h1>Real PDF tools. Free to use. Yours in seconds.</h1>
+</section>
+
+<div class="grid" id="grid"></div>
+
+<section id="pricing" style="max-width:1100px;margin:20px auto 90px;padding:0 24px;">
+  <div style="text-align:center;margin-bottom:28px;">
+    <h2 style="font-size:26px;font-weight:800;">Upgrade when you need more</h2>
+    <p style="color:var(--ink-soft);font-size:14px;">All plans billed in INR · Secure checkout via Razorpay</p>
+  </div>
+  <div id="pricingGrid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;"></div>
+</section>
+
+
+
+<div class="overlay" id="toolOverlay">
+  <div class="modal" id="toolModal"></div>
+</div>
+
+<div class="overlay" id="upgradeOverlay">
+  <div class="modal">
+    <button class="close" onclick="closeModal('upgradeOverlay')">&times;</button>
+    <div class="pricing" id="upgradeModalBody"></div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
+const { PDFDocument, degrees, rgb, StandardFonts } = PDFLib;
+
+const ICONS = {
+  arrowsIn: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M4 20l7-7"/><path d="M20 10h-6V4M20 4l-7 7"/></svg>',
+  arrowsOut: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H4v5M4 4l7 7"/><path d="M15 20h5v-5M20 20l-7-7"/></svg>',
+  compress: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h5v5M20 4l-6 6"/><path d="M9 20H4v-5M4 20l6-6"/></svg>',
+  rotate: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>',
+  drop: '<svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 2C8 8 5 11.5 5 15a7 7 0 0 0 14 0c0-3.5-3-7-7-13z"/></svg>',
+  image: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg>',
+  layers: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="M2 14l10 5 10-5"/></svg>',
+  hash: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h14M5 15h14M9 4l-2 16M17 4l-2 16"/></svg>',
+  crop: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>',
+  pen: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>',
+  code: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>',
+  unlock: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  archive: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="5" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 13h4"/></svg>',
+  wrench: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L2 19l3 3 7.3-7.3a4 4 0 0 0 5.4-5.4l-2.8 2.8-2-2z"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  shuffle: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>',
+  block: '<svg viewBox="0 0 24 24" width="20" height="20" fill="white"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>',
+  checklist: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 7 2 2 4-4M3 17l2 2 4-4M11 6h10M11 18h10"/></svg>',
+  sparkle: '<svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>',
+  doc: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>'
+};
+
+const tools = [
+  {id:"merge", name:"Merge PDF", desc:"Combine multiple PDFs into one, in the order you choose.", color:"#e5322d", icon:ICONS.arrowsIn, live:true},
+  {id:"split", name:"Split PDF", desc:"Break a PDF into individual pages, downloaded as a ZIP.", color:"#e5322d", icon:ICONS.arrowsOut, live:true},
+  {id:"compress", name:"Compress PDF", desc:"Basic in-browser size optimization.", color:"#3fa66a", icon:ICONS.compress, live:true},
+  {id:"wordpdf", name:"PDF to Word", desc:"Requires a server-side engine — coming with Pro backend.", color:"#2a6fdb", icon:"W", live:false},
+  {id:"ppttopdf2", name:"PDF to PowerPoint", desc:"Requires a server-side engine — coming with Pro backend.", color:"#e5322d", icon:"P", live:false},
+  {id:"exceltopdf", name:"PDF to Excel", desc:"Requires a server-side engine — coming with Pro backend.", color:"#3fa66a", icon:"X", live:false},
+  {id:"wordtopdf", name:"Word to PDF", desc:"Requires a server-side engine — coming with Pro backend.", color:"#2a6fdb", icon:"W", live:false},
+  {id:"ppttopdf", name:"PowerPoint to PDF", desc:"Requires a server-side engine — coming with Pro backend.", color:"#e5322d", icon:"P", live:false},
+  {id:"exceltopdf2", name:"Excel to PDF", desc:"Requires a server-side engine — coming with Pro backend.", color:"#3fa66a", icon:"X", live:false},
+  {id:"edit", name:"Edit PDF", desc:"Add text, shapes, annotations — coming with Pro backend.", color:"#8b5ff0", icon:ICONS.pen, live:false},
+  {id:"pdftojpg", name:"PDF to JPG", desc:"Export every page as a JPG image (ZIP download).", color:"#e0a72b", icon:ICONS.image, live:true},
+  {id:"jpgtopdf", name:"JPG to PDF", desc:"Convert one or more images into a single PDF.", color:"#e0a72b", icon:ICONS.image, live:true},
+  {id:"sign", name:"Sign PDF", desc:"E-signatures — coming with Pro backend.", color:"#2a6fdb", icon:ICONS.pen, live:false},
+  {id:"watermark", name:"Watermark", desc:"Stamp text diagonally across every page.", color:"#8b5ff0", icon:ICONS.drop, live:true},
+  {id:"rotate", name:"Rotate PDF", desc:"Rotate every page 90° clockwise.", color:"#e0507d", icon:ICONS.rotate, live:true},
+  {id:"htmltopdf", name:"HTML to PDF", desc:"Requires a server-side engine — coming with Pro backend.", color:"#e0a72b", icon:ICONS.code, live:false},
+  {id:"unlock", name:"Unlock PDF", desc:"Remove a known password — coming with Pro backend.", color:"#2a6fdb", icon:ICONS.unlock, live:false},
+  {id:"protect", name:"Protect PDF", desc:"Password-encrypt a PDF — coming with Pro backend.", color:"#e0507d", icon:ICONS.lock, live:false},
+  {id:"organize", name:"Organize PDF", desc:"Reorder or remove pages by typing the new page order.", color:"#e0507d", icon:ICONS.layers, live:true},
+  {id:"pdfa", name:"PDF to PDF/A", desc:"Archive-standard conversion — coming with Pro backend.", color:"#2a6fdb", icon:ICONS.archive, live:false},
+  {id:"repair", name:"Repair PDF", desc:"Recover data from a damaged file — coming with Pro backend.", color:"#3fa66a", icon:ICONS.wrench, live:false},
+  {id:"pagenum", name:"Page Numbers", desc:"Add page numbers to the bottom of every page.", color:"#8b5ff0", icon:ICONS.hash, live:true},
+  {id:"scan", name:"Scan to PDF", desc:"Capture a scan from your camera — coming with Pro backend.", color:"#e5322d", icon:ICONS.camera, live:false},
+  {id:"ocr", name:"OCR PDF", desc:"Make scanned PDFs searchable — coming with Pro backend.", color:"#3fa66a", icon:"OCR", live:false},
+  {id:"compare", name:"Compare PDF", desc:"Side-by-side comparison — coming with Pro backend.", color:"#2a6fdb", icon:ICONS.shuffle, live:false},
+  {id:"redact", name:"Redact PDF", desc:"Permanently remove sensitive content — coming with Pro backend.", color:"#2a6fdb", icon:ICONS.block, live:false},
+  {id:"crop", name:"Crop PDF", desc:"Trim margins from every page by a set amount.", color:"#8b5ff0", icon:ICONS.crop, live:true},
+  {id:"forms", name:"PDF Forms", desc:"Create or fill fillable forms — coming with Pro backend.", color:"#8b5ff0", icon:ICONS.checklist, live:false},
+  {id:"aisummarizer", name:"AI Summarizer", desc:"AI-generated summaries — coming with Pro backend.", color:"#2a6fdb", icon:ICONS.sparkle, live:false},
+  {id:"translate", name:"Translate PDF", desc:"AI-powered translation — coming with Pro backend.", color:"#e0507d", icon:ICONS.globe, live:false},
+  {id:"tomarkdown", name:"PDF to Markdown", desc:"Convert PDFs into clean Markdown — coming with Pro backend.", color:"#8b5ff0", icon:ICONS.doc, live:false},
+];
+
+const grid = document.getElementById('grid');
+tools.forEach(t=>{
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="icon" style="background:${t.color}">${t.icon}</div>
+    <h3>${t.name}</h3>
+    <p>${t.desc}</p>
+  `;
+  card.onclick = ()=> t.live ? openTool(t.id) : alert(t.name+" needs a server-side engine and will arrive once the Pro backend is connected.");
+  grid.appendChild(card);
+});
+
+function scrollToTools(){document.getElementById('grid').scrollIntoView({behavior:'smooth'});}
+function scrollToPricing(){document.getElementById('pricing').scrollIntoView({behavior:'smooth'});}
+
+const plans = {
+  weekly:  {label:"Weekly",   price:99,  period:"/week",     amount:9900,  desc:"Great for a short-term crunch.", features:["Unlimited jobs for 7 days","No daily limit","Cancel anytime"]},
+  five:    {label:"Monthly",  price:349, period:"/month",    amount:34900, desc:"Best value for regular use.",     features:["Unlimited jobs for 1 month","No daily limit","Cancel anytime"]},
+  pro:     {label:"Pro",      price:649, period:"/month",    amount:64900, desc:"Our most popular plan.",          features:["Unlimited daily jobs","Larger file size support","Priority access to new tools"]},
+  max:     {label:"Max",      price:949, period:"/month",    amount:94900, desc:"For power users and teams.",      features:["Everything in Pro","Higher file size & usage limits","Priority access & support"]},
+};
+
+function isPremium(){ return !!localStorage.getItem('pdftk_plan'); }
+function getUsage(){
+  const today = new Date().toISOString().slice(0,10);
+  let u = JSON.parse(localStorage.getItem('pdftk_usage')||'{}');
+  if(u.date !== today){ u = {date:today, count:0}; localStorage.setItem('pdftk_usage', JSON.stringify(u)); }
+  return u;
+}
+function incUsage(){
+  const u = getUsage(); u.count++;
+  localStorage.setItem('pdftk_usage', JSON.stringify(u));
+}
+function canRun(){ return isPremium() || getUsage().count < 3; }
+function refreshPlanUI(){
+  c
