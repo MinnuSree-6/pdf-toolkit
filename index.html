@@ -7,6 +7,8 @@
 <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   :root{
     --bg:#fdecef; --card:#ffffff; --red:#e14b41; --red-dark:#c93c33;
@@ -54,8 +56,8 @@
   .modal{background:#fff;border-radius:24px;max-width:460px;width:100%;padding:28px;max-height:88vh;overflow-y:auto;position:relative;}
   .modal h2{margin:0 0 4px;font-size:20px;}
   .modal .mdesc{color:var(--muted);font-size:13.5px;margin:0 0 18px;}
-  .modal input[type=file],.modal input[type=text],.modal input[type=password],.modal input[type=number],.modal select{
-    width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;margin-bottom:12px;background:#fffafa;
+  .modal input[type=file],.modal input[type=text],.modal input[type=password],.modal input[type=number],.modal select,.modal textarea{
+    width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;margin-bottom:12px;background:#fffafa;font-family:inherit;
   }
   .modal label{font-size:12.5px;font-weight:700;color:#555;display:block;margin:10px 0 4px;}
   .close-x{position:absolute;top:18px;right:20px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);}
@@ -70,6 +72,11 @@
   #camvideo,#camcanvas{width:100%;border-radius:12px;margin-bottom:10px;}
   .thumbstrip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
   .thumbstrip img{width:60px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .diffbox{max-height:260px;overflow-y:auto;border:1.5px solid var(--border);border-radius:12px;padding:10px;font-size:12.5px;font-family:ui-monospace,Consolas,monospace;background:#fffafa;}
+  .diffbox .add{background:#eafaf0;color:#1c7a3a;display:block;padding:2px 4px;}
+  .diffbox .del{background:#fdecec;color:var(--red-dark);display:block;padding:2px 4px;text-decoration:line-through;}
+  .diffbox .same{color:#666;display:block;padding:2px 4px;}
 </style>
 </head>
 <body>
@@ -80,7 +87,6 @@
   <div class="nav-actions">
     <button class="gear" title="Backend URL" onclick="setBackendUrl()">⚙</button>
     <button class="btn btn-outline" onclick="alert('Accounts aren\'t wired up in this demo — hook up your own auth provider (e.g. Clerk, Supabase Auth) to enable Sign up.')">Sign up</button>
-    <button class="btn btn-solid" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Upgrade</button>
   </div>
 </header>
 
@@ -110,14 +116,13 @@
 
 <script>
 /* ============================= CONFIG ============================= */
-// Set this to your deployed backend's URL (see README), e.g. "https://pdf-toolkit-api.onrender.com"
-let BACKEND_URL = "";
+let BACKEND_URL = localStorage.getItem('pdftk_backend') || "";
 function setBackendUrl(){
   const v = prompt("Backend URL (from Render/your host):", BACKEND_URL || "https://your-backend.onrender.com");
-  if(v !== null) BACKEND_URL = v.trim().replace(/\/$/,'');
+  if(v !== null){ BACKEND_URL = v.trim().replace(/\/$/,''); try{ localStorage.setItem('pdftk_backend', BACKEND_URL); }catch(e){} }
 }
 function needsBackend(){
-  if(!BACKEND_URL){ alert('Set your backend URL first — click the ⚙ icon top-right. See the README for how to deploy the backend.'); return true; }
+  if(!BACKEND_URL){ alert('Set your backend URL first — click the ⚙ icon top-right.'); return true; }
   return false;
 }
 
@@ -135,12 +140,12 @@ const TOOLS = [
   {id:'pagenum', name:'Page Numbers', color:'#8a4fd1', icon:'#', desc:'Add page numbers to the bottom of every page.'},
   {id:'rotate', name:'Rotate PDF', color:'#d1447e', icon:'↻', desc:'Rotate every page 90° clockwise.'},
   {id:'html2pdf', name:'HTML to PDF', color:'#d1a01f', icon:'⟨⟩', desc:'Convert an .html file to PDF (runs on your backend).'},
-  {id:'unlock', name:'Unlock PDF', color:'#3f6bd1', icon:'🔓', desc:'Remove a known password.'},
+  {id:'unlock', name:'Unlock PDF', color:'#3f6bd1', icon:'🔓', desc:'Remove a known password (runs on your backend).'},
   {id:'protect', name:'Protect PDF', color:'#d1447e', icon:'🔒', desc:'Password-encrypt a PDF (runs on your backend).'},
   {id:'crop', name:'Crop PDF', color:'#8a4fd1', icon:'⤢', desc:'Trim margins from every page by a set amount.'},
-  {id:'forms', name:'PDF Forms', color:'#8a4fd1', icon:'☑', desc:'Fill in a PDF\'s existing fillable form fields.'},
+  {id:'forms', name:'PDF Forms', color:'#8a4fd1', icon:'☑', desc:'Fill in a PDF\'s existing fillable form fields (runs on your backend).'},
   {id:'aisum', name:'AI Summarizer', color:'#3f6bd1', icon:'✦', desc:'AI-generated summary of your document (runs on your backend).'},
-  {id:'translate', name:'Translate PDF', color:'#d1447e', icon:'🌐', desc:'AI-powered translation to a language of your choice.'},
+  {id:'translate', name:'Translate PDF', color:'#d1447e', icon:'🌐', desc:'AI-powered translation to a language of your choice (runs on your backend).'},
   {id:'pdf2jpg', name:'PDF to JPG', color:'#d1a01f', icon:'🖼', desc:'Export every page as a JPG image (ZIP download).'},
   {id:'jpg2pdf', name:'JPG to PDF', color:'#d1a01f', icon:'🖼', desc:'Convert one or more images into a single PDF.'},
   {id:'sign', name:'Sign PDF', color:'#3f6bd1', icon:'✎', desc:'Draw a signature and place it on any page.'},
@@ -172,10 +177,10 @@ function payStub(plan){
 /* ============================= Modal plumbing ============================= */
 const overlay = document.getElementById('overlay');
 const modalContent = document.getElementById('modalContent');
-function closeModal(){ overlay.classList.remove('show'); modalContent.innerHTML=''; }
+function closeModal(){ overlay.classList.remove('show'); modalContent.innerHTML=''; stopCam(); }
 overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
 function setStatus(msg, kind){ const el=document.getElementById('status'); if(!el) return; el.textContent=msg||''; el.className='status'+(kind?' '+kind:''); }
-function showDownload(blob, filename){ const dl=document.getElementById('dl'); const url=URL.createObjectURL(blob); dl.innerHTML=`⬇ <a href="${url}" download="${filename}">Download ${filename}</a>`; dl.style.display='block'; }
+function showDownload(blob, filename){ const dl=document.getElementById('dl'); if(!dl) return; const url=URL.createObjectURL(blob); dl.innerHTML=`⬇ <a href="${url}" download="${filename}">Download ${filename}</a>`; dl.style.display='block'; }
 function runBtnBusy(btn, busy, label){ btn.disabled=busy; btn.innerHTML = busy ? `<span class="spin"></span>Working…` : label; }
 function openTool(id){ overlay.classList.add('show'); const b=BUILDERS[id]; modalContent.innerHTML=b.html; b.init(); }
 function filesOf(inputId){ return Array.from(document.getElementById(inputId).files || []); }
@@ -194,6 +199,19 @@ async function backendFileJob(path, formData, outName){
   }
   const blob = await res.blob();
   showDownload(blob, outName);
+}
+
+/* helper: extract plain text per page using pdf.js */
+async function extractPages(file){
+  const buf = await file.arrayBuffer();
+  const doc = await pdfjsLib.getDocument({data: buf}).promise;
+  const pages = [];
+  for(let i=1;i<=doc.numPages;i++){
+    const page = await doc.getPage(i);
+    const tc = await page.getTextContent();
+    pages.push({ page, items: tc.items, text: tc.items.map(it=>it.str).join(' ') });
+  }
+  return { doc, pages };
 }
 
 /* ============================= BUILDERS ============================= */
@@ -231,7 +249,6 @@ const BUILDERS = {
       }catch(err){ setStatus('Failed: '+err.message,'err'); }
       runBtnBusy(e.target,false,'Split PDF'); };
     } },
-
   organize: { html:`
     <h2>Organize PDF</h2><p class="mdesc">Type the new page order, e.g. <code>3,1,2</code> or <code>1-3,7,5</code>. Omit a page to remove it.</p>
     <input type="file" id="f" accept="application/pdf">
@@ -254,6 +271,7 @@ const BUILDERS = {
       }catch(err){ setStatus('Failed: '+err.message,'err'); }
       runBtnBusy(e.target,false,'Apply order'); };
     } },
+
   pagenum: { html:`
     <h2>Page Numbers</h2><p class="mdesc">Adds a centered page number to the bottom of every page.</p>
     <input type="file" id="f" accept="application/pdf">
@@ -266,7 +284,7 @@ const BUILDERS = {
         const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true}); const font=await doc.embedFont(StandardFonts.Helvetica);
         const pages=doc.getPages();
         pages.forEach((p,i)=>{ const {width}=p.getSize(); const label=`${i+1} / ${pages.length}`; const tw=font.widthOfTextAtSize(label,10);
-          p.drawText(label,{x:(width-tw)/2, y:20, size:10, font, color:rgb(0.35,0.35,0.35)}); });
+          p.drawText(label, {x:width/2-tw/2, y:18, size:10, font, color:rgb(0.3,0.3,0.3)}); });
         showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'numbered.pdf'); setStatus('Done.','ok');
       }catch(err){ setStatus('Failed: '+err.message,'err'); }
       runBtnBusy(e.target,false,'Add page numbers'); };
@@ -282,7 +300,7 @@ const BUILDERS = {
       runBtnBusy(e.target,true,'Rotate PDF');
       try{
         const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true});
-        doc.getPages().forEach(p=>{ const cur=p.getRotation().angle; p.setRotation(degrees(cur+90)); });
+        doc.getPages().forEach(p=>{ const cur=p.getRotation().angle; p.setRotation(degrees((cur+90)%360)); });
         showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'rotated.pdf'); setStatus('Done.','ok');
       }catch(err){ setStatus('Failed: '+err.message,'err'); }
       runBtnBusy(e.target,false,'Rotate PDF'); };
@@ -295,39 +313,61 @@ const BUILDERS = {
     <button class="btn btn-solid" style="width:100%" id="run">Crop PDF</button>
     <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
     init(){ document.getElementById('run').onclick = async (e)=>{
-      const files=filesOf('f'); const margin=parseFloat(document.getElementById('margin').value)||0;
+      const files=filesOf('f'); const m=parseFloat(document.getElementById('margin').value)||0;
       if(!files.length) return setStatus('Choose a PDF file.','err');
       runBtnBusy(e.target,true,'Crop PDF');
       try{
         const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true});
-        doc.getPages().forEach(p=>{ const {width,height}=p.getSize();
-          p.setCropBox(margin, margin, Math.max(1,width-2*margin), Math.max(1,height-2*margin)); });
+        doc.getPages().forEach(p=>{ const {width,height}=p.getSize(); p.setCropBox(m, m, width-2*m, height-2*m); });
         showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'cropped.pdf'); setStatus('Done.','ok');
       }catch(err){ setStatus('Failed: '+err.message,'err'); }
       runBtnBusy(e.target,false,'Crop PDF'); };
     } },
 
   watermark: { html:`
-    <h2>Watermark</h2><p class="mdesc">Stamps text diagonally across every page.</p>
+    <h2>Watermark</h2><p class="mdesc">Stamps your text diagonally across every page.</p>
     <input type="file" id="f" accept="application/pdf">
     <label>Watermark text</label><input type="text" id="wtext" placeholder="e.g. CONFIDENTIAL" value="CONFIDENTIAL">
     <button class="btn btn-solid" style="width:100%" id="run">Add watermark</button>
     <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
     init(){ document.getElementById('run').onclick = async (e)=>{
-      const files=filesOf('f'); const text=document.getElementById('wtext').value.trim()||'WATERMARK';
+      const files=filesOf('f'); const text=document.getElementById('wtext').value.trim()||'CONFIDENTIAL';
       if(!files.length) return setStatus('Choose a PDF file.','err');
       runBtnBusy(e.target,true,'Add watermark');
       try{
         const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true}); const font=await doc.embedFont(StandardFonts.HelveticaBold);
-        doc.getPages().forEach(p=>{ const {width,height}=p.getSize(); const size=Math.min(width,height)/8; const tw=font.widthOfTextAtSize(text,size);
-          p.drawText(text,{x:width/2-tw/2, y:height/2, size, font, color:rgb(0.85,0.2,0.2), opacity:0.25, rotate:degrees(45)}); });
+        doc.getPages().forEach(p=>{ const {width,height}=p.getSize(); const size=Math.min(width,height)/8;
+          p.drawText(text, {x:width/2-(font.widthOfTextAtSize(text,size)/2), y:height/2, size, font, color:rgb(0.85,0.15,0.13), opacity:0.28, rotate:degrees(45)}); });
         showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'watermarked.pdf'); setStatus('Done.','ok');
       }catch(err){ setStatus('Failed: '+err.message,'err'); }
       runBtnBusy(e.target,false,'Add watermark'); };
     } },
 
+  edit: { html:`
+    <h2>Edit PDF</h2><p class="mdesc">Adds a text box at a chosen position on one page.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <div class="row2"><div><label>Page number</label><input type="number" id="pg" value="1" min="1"></div><div><label>Font size</label><input type="number" id="sz" value="14" min="4"></div></div>
+    <div class="row2"><div><label>X position</label><input type="number" id="px" value="50"></div><div><label>Y position (from bottom)</label><input type="number" id="py" value="50"></div></div>
+    <label>Text to add</label><textarea id="txt" rows="3" placeholder="Type text…"></textarea>
+    <button class="btn btn-solid" style="width:100%" id="run">Add text</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); const pgN=parseInt(document.getElementById('pg').value,10)||1;
+      const sz=parseFloat(document.getElementById('sz').value)||14; const px=parseFloat(document.getElementById('px').value)||0;
+      const py=parseFloat(document.getElementById('py').value)||0; const txt=document.getElementById('txt').value;
+      if(!files.length) return setStatus('Choose a PDF file.','err'); if(!txt) return setStatus('Type text to add.','err');
+      runBtnBusy(e.target,true,'Add text');
+      try{
+        const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true}); const font=await doc.embedFont(StandardFonts.Helvetica);
+        const pages=doc.getPages(); if(pgN<1||pgN>pages.length) return setStatus(`Page must be 1–${pages.length}.`,'err');
+        pages[pgN-1].drawText(txt, {x:px, y:py, size:sz, font, color:rgb(0,0,0)});
+        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'edited.pdf'); setStatus('Done.','ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Add text'); };
+    } },
+
   compress: { html:`
-    <h2>Compress PDF</h2><p class="mdesc">Basic in-browser size optimization by re-saving with object streams.</p>
+    <h2>Compress PDF</h2><p class="mdesc">Basic in-browser size optimization (re-encodes the file's internal structure).</p>
     <input type="file" id="f" accept="application/pdf">
     <button class="btn btn-solid" style="width:100%" id="run">Compress PDF</button>
     <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
@@ -335,160 +375,61 @@ const BUILDERS = {
       const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err');
       runBtnBusy(e.target,true,'Compress PDF');
       try{
-        const bytesIn = await fileBytes(files[0]);
-        const doc=await PDFDocument.load(bytesIn,{ignoreEncryption:true, updateMetadata:false});
-        const bytesOut = await doc.save({useObjectStreams:true});
-        const pct = Math.max(0, Math.round((1 - bytesOut.length/bytesIn.length)*100));
-        showDownload(new Blob([bytesOut],{type:'application/pdf'}), 'compressed.pdf');
-        setStatus(pct>0 ? `Done — about ${pct}% smaller.` : 'Done. (This file was already fairly optimized — for big savings on scanned/image-heavy PDFs, a server-side compressor works better.)','ok');
+        const before=files[0].size;
+        const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true});
+        const bytes=await doc.save({useObjectStreams:true, addDefaultPage:false});
+        const after=bytes.length;
+        showDownload(new Blob([bytes],{type:'application/pdf'}), 'compressed.pdf');
+        setStatus(`Done. ${(before/1024).toFixed(0)}KB → ${(after/1024).toFixed(0)}KB.`,'ok');
       }catch(err){ setStatus('Failed: '+err.message,'err'); }
       runBtnBusy(e.target,false,'Compress PDF'); };
+    } },
+
+  jpg2pdf: { html:`
+    <h2>JPG to PDF</h2><p class="mdesc">Combines one or more images into a single PDF, one image per page.</p>
+    <input type="file" id="f" accept="image/jpeg,image/png" multiple>
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose at least one image.','err');
+      runBtnBusy(e.target,true,'Convert to PDF');
+      try{
+        const doc=await PDFDocument.create();
+        for(const f of files){
+          const bytes=await fileBytes(f);
+          const img = f.type.includes('png') ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+          const page=doc.addPage([img.width, img.height]); page.drawImage(img, {x:0,y:0,width:img.width,height:img.height});
+        }
+        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'images.pdf'); setStatus('Done.','ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to PDF'); };
     } },
 
   pdf2jpg: { html:`
     <h2>PDF to JPG</h2><p class="mdesc">Exports every page as a JPG image, packaged as a ZIP.</p>
     <input type="file" id="f" accept="application/pdf">
-    <button class="btn btn-solid" style="width:100%" id="run">Convert to JPG</button>
+    <button class="btn btn-solid" style="width:100%" id="run">Export as JPG</button>
     <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
     init(){ document.getElementById('run').onclick = async (e)=>{
       const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err');
-      runBtnBusy(e.target,true,'Convert to JPG');
+      runBtnBusy(e.target,true,'Export as JPG');
       try{
-        const buf = await files[0].arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({data:buf}).promise;
-        const zip = new JSZip();
+        const buf=await files[0].arrayBuffer(); const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+        const zip=new JSZip();
         for(let i=1;i<=pdf.numPages;i++){
-          const page = await pdf.getPage(i); const viewport = page.getViewport({scale:2});
-          const canvas = document.createElement('canvas'); canvas.width=viewport.width; canvas.height=viewport.height;
+          const page=await pdf.getPage(i); const viewport=page.getViewport({scale:2});
+          const canvas=document.createElement('canvas'); canvas.width=viewport.width; canvas.height=viewport.height;
           await page.render({canvasContext:canvas.getContext('2d'), viewport}).promise;
-          const blob = await new Promise(res=>canvas.toBlob(res,'image/jpeg',0.9));
+          const blob=await new Promise(res=>canvas.toBlob(res,'image/jpeg',0.9));
           zip.file(`page-${String(i).padStart(2,'0')}.jpg`, blob);
         }
-        showDownload(await zip.generateAsync({type:'blob'}), 'pdf-pages.zip'); setStatus(`Done — ${pdf.numPages} pages.`,'ok');
+        showDownload(await zip.generateAsync({type:'blob'}), 'pages.zip'); setStatus(`Done — ${pdf.numPages} pages.`,'ok');
       }catch(err){ setStatus('Failed: '+err.message,'err'); }
-      runBtnBusy(e.target,false,'Convert to JPG'); };
+      runBtnBusy(e.target,false,'Export as JPG'); };
     } },
-
-  jpg2pdf: { html:`
-    <h2>JPG to PDF</h2><p class="mdesc">Pick one or more images — they'll become pages of a single PDF, in order.</p>
-    <input type="file" id="f" accept="image/*" multiple>
-    <button class="btn btn-solid" style="width:100%" id="run">Convert to PDF</button>
-    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
-    init(){ document.getElementById('run').onclick = async (e)=>{
-      const files=filesOf('f'); if(!files.length) return setStatus('Choose at least 1 image.','err');
-      runBtnBusy(e.target,true,'Convert to PDF');
-      try{
-        const doc = await PDFDocument.create();
-        for(const f of files){
-          const bytes = await fileBytes(f);
-          const isPng = f.type.includes('png');
-          const img = isPng ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
-          const page = doc.addPage([img.width, img.height]);
-          page.drawImage(img, {x:0,y:0,width:img.width,height:img.height});
-        }
-        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'images.pdf'); setStatus('Done.','ok');
-      }catch(err){ setStatus('Failed: '+err.message+' (tip: only JPG/PNG are supported client-side)','err'); }
-      runBtnBusy(e.target,false,'Convert to PDF'); };
-    } },
-
-  sign: { html:`
-    <h2>Sign PDF</h2><p class="mdesc">Draw your signature, then place it near the bottom of every page.</p>
-    <input type="file" id="f" accept="application/pdf">
-    <label>Draw signature below</label>
-    <canvas id="sigpad"></canvas>
-    <button class="btn btn-outline" type="button" id="clearSig" style="width:100%;margin-bottom:12px;">Clear signature</button>
-    <button class="btn btn-solid" style="width:100%" id="run">Sign PDF</button>
-    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
-    init(){
-      const canvas=document.getElementById('sigpad'); const ctx=canvas.getContext('2d');
-      function resize(){ const r=canvas.getBoundingClientRect(); canvas.width=r.width*2; canvas.height=r.height*2; ctx.scale(2,2); ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.strokeStyle='#1c1c1e'; }
-      resize();
-      let drawing=false, hasInk=false;
-      function pos(ev){ const r=canvas.getBoundingClientRect(); const t=ev.touches?ev.touches[0]:ev; return {x:t.clientX-r.left, y:t.clientY-r.top}; }
-      function start(ev){ drawing=true; hasInk=true; const p=pos(ev); ctx.beginPath(); ctx.moveTo(p.x,p.y); ev.preventDefault(); }
-      function move(ev){ if(!drawing) return; const p=pos(ev); ctx.lineTo(p.x,p.y); ctx.stroke(); ev.preventDefault(); }
-      function end(){ drawing=false; }
-      canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
-      canvas.addEventListener('touchstart',start); canvas.addEventListener('touchmove',move); canvas.addEventListener('touchend',end);
-      document.getElementById('clearSig').onclick=()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); hasInk=false; };
-      document.getElementById('run').onclick = async (e)=>{
-        const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err');
-        if(!hasInk) return setStatus('Draw your signature first.','err');
-        runBtnBusy(e.target,true,'Sign PDF');
-        try{
-          const sigPng = await new Promise(res=>canvas.toBlob(res,'image/png'));
-          const sigBytes = new Uint8Array(await sigPng.arrayBuffer());
-          const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true});
-          const sigImg = await doc.embedPng(sigBytes);
-          const scale = 140 / sigImg.width;
-          doc.getPages().forEach(p=>{ const {width}=p.getSize();
-            p.drawImage(sigImg, {x:width-160, y:30, width:sigImg.width*scale, height:sigImg.height*scale}); });
-          showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'signed.pdf'); setStatus('Done.','ok');
-        }catch(err){ setStatus('Failed: '+err.message,'err'); }
-        runBtnBusy(e.target,false,'Sign PDF'); };
-    } },
-
-  edit: { html:`
-    <h2>Edit PDF</h2><p class="mdesc">Adds a text box at a chosen position on one page (position measured from the bottom-left corner, in points).</p>
-    <input type="file" id="f" accept="application/pdf">
-    <label>Page number</label><input type="number" id="pg" value="1" min="1">
-    <label>Text to add</label><input type="text" id="etext" placeholder="Your text">
-    <label>X position</label><input type="number" id="ex" value="50">
-    <label>Y position</label><input type="number" id="ey" value="50">
-    <button class="btn btn-solid" style="width:100%" id="run">Add text</button>
-    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
-    init(){ document.getElementById('run').onclick = async (e)=>{
-      const files=filesOf('f'); const pg=parseInt(document.getElementById('pg').value,10)-1;
-      const text=document.getElementById('etext').value; const x=parseFloat(document.getElementById('ex').value)||0; const y=parseFloat(document.getElementById('ey').value)||0;
-      if(!files.length) return setStatus('Choose a PDF file.','err'); if(!text) return setStatus('Type some text to add.','err');
-      runBtnBusy(e.target,true,'Add text');
-      try{
-        const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true}); const font=await doc.embedFont(StandardFonts.Helvetica);
-        const pages=doc.getPages(); if(pg<0||pg>=pages.length) return setStatus(`Page ${pg+1} is out of range (1–${pages.length}).`,'err');
-        pages[pg].drawText(text,{x,y,size:14,font,color:rgb(0,0,0)});
-        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'edited.pdf'); setStatus('Done.','ok');
-      }catch(err){ setStatus('Failed: '+err.message,'err'); }
-      runBtnBusy(e.target,false,'Add text'); };
-    } },
-
-  unlock: { html:`
-    <h2>Unlock PDF</h2><p class="mdesc">Removes a known password so the file opens without one.</p>
-    <input type="file" id="f" accept="application/pdf">
-    <label>Current password</label><input type="password" id="pw" placeholder="Password">
-    <button class="btn btn-solid" style="width:100%" id="run">Unlock PDF</button>
-    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
-    init(){ document.getElementById('run').onclick = async (e)=>{
-      const files=filesOf('f'); const pw=document.getElementById('pw').value;
-      if(!files.length) return setStatus('Choose a PDF file.','err');
-      runBtnBusy(e.target,true,'Unlock PDF');
-      try{
-        const doc=await PDFDocument.load(await fileBytes(files[0]),{password:pw||undefined, ignoreEncryption:true});
-        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'unlocked.pdf'); setStatus('Done.','ok');
-      }catch(err){ setStatus('Failed: '+err.message+' — check the password and try again.','err'); }
-      runBtnBusy(e.target,false,'Unlock PDF'); };
-    } },
-
-  /* Server-dependent tools — clear, honest messaging instead of a fake result */
-  scan: { html: backendOnlyHtml('Scan to PDF', 'Capture a scan with your camera and save it as a PDF.'), init(){} },
-  ocr: { html: backendOnlyHtml('OCR PDF', 'Make scanned PDFs searchable.'), init(){} },
-  compare: { html: backendOnlyHtml('Compare PDF', 'Line-by-line text comparison between two PDFs.'), init(){} },
-  redact: { html: backendOnlyHtml('Redact PDF', 'Permanently black out every occurrence of a word or phrase.'), init(){} },
-  pdfa: { html: backendOnlyHtml('PDF to PDF/A', 'Archive-standard conversion.'), init(){} },
-  repair: { html: backendOnlyHtml('Repair PDF', 'Recover data from a damaged file.'), init(){} },
-  html2pdf: { html: backendOnlyHtml('HTML to PDF', 'Convert an .html file to PDF.'), init(){} },
-  protect: { html: backendOnlyHtml('Protect PDF', 'Password-encrypt a PDF.'), init(){} },
-  forms: { html: backendOnlyHtml('PDF Forms', 'Create or fill fillable form fields.'), init(){} },
-  aisum: { html: backendOnlyHtml('AI Summarizer', 'AI-generated summary of your document.'), init(){} },
-  translate: { html: backendOnlyHtml('Translate PDF', 'AI-powered translation to a language of your choice.'), init(){} },
-  word2pdf: { html: backendOnlyHtml('Word to PDF', 'Convert a .docx file to PDF.'), init(){} },
-  ppt2pdf: { html: backendOnlyHtml('PowerPoint to PDF', 'Convert a .pptx file to PDF.'), init(){} },
-  xls2pdf: { html: backendOnlyHtml('Excel to PDF', 'Convert a .xlsx file to PDF.'), init(){} },
-  pdf2word: { html: backendOnlyHtml('PDF to Word', 'Convert a PDF to .docx.'), init(){} },
-  pdf2ppt: { html: backendOnlyHtml('PDF to PowerPoint', 'Convert a PDF to .pptx.'), init(){} },
-  pdf2xls: { html: backendOnlyHtml('PDF to Excel', 'Convert a PDF to .xlsx.'), init(){} },
 
   pdf2md: { html:`
-    <h2>PDF to Markdown</h2><p class="mdesc">Extracts every page's text as clean Markdown.</p>
+    <h2>PDF to Markdown</h2><p class="mdesc">Extracts each page's text into a single Markdown file.</p>
     <input type="file" id="f" accept="application/pdf">
     <button class="btn btn-solid" style="width:100%" id="run">Convert to Markdown</button>
     <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
@@ -496,20 +437,353 @@ const BUILDERS = {
       const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err');
       runBtnBusy(e.target,true,'Convert to Markdown');
       try{
-        const buf = await files[0].arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({data:buf}).promise;
-        let md = '';
-        for(let i=1;i<=pdf.numPages;i++){
-          const page = await pdf.getPage(i); const content = await page.getTextContent();
-          const text = content.items.map(it=>it.str).join(' ');
-          md += `## Page ${i}\n\n${text}\n\n`;
-        }
-        showDownload(new Blob([md],{type:'text/markdown'}), 'document.md'); setStatus(`Done — ${pdf.numPages} pages.`,'ok');
+        const {pages}=await extractPages(files[0]);
+        let md='';
+        pages.forEach((p,i)=>{ md += `## Page ${i+1}\n\n${p.text}\n\n`; });
+        showDownload(new Blob([md],{type:'text/markdown'}), 'document.md'); setStatus('Done.','ok');
       }catch(err){ setStatus('Failed: '+err.message,'err'); }
       runBtnBusy(e.target,false,'Convert to Markdown'); };
     } },
 
+  compare: { html:`
+    <h2>Compare PDF</h2><p class="mdesc">Line-by-line text comparison between two PDFs.</p>
+    <label>First PDF</label><input type="file" id="f1" accept="application/pdf">
+    <label>Second PDF</label><input type="file" id="f2" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Compare</button>
+    <div class="status" id="status"></div>
+    <div class="diffbox" id="diffOut" style="display:none;margin-top:10px;"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const f1=document.getElementById('f1').files[0], f2=document.getElementById('f2').files[0];
+      if(!f1||!f2) return setStatus('Choose both PDF files.','err');
+      runBtnBusy(e.target,true,'Compare');
+      try{
+        const a=(await extractPages(f1)).pages.map(p=>p.text.trim()).join('\n').split('\n').filter(Boolean);
+        const b=(await extractPages(f2)).pages.map(p=>p.text.trim()).join('\n').split('\n').filter(Boolean);
+        // simple LCS-based line diff
+        const m=a.length, n=b.length; const dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+        for(let i=m-1;i>=0;i--) for(let j=n-1;j>=0;j--) dp[i][j] = a[i]===b[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j],dp[i][j+1]);
+        let i=0,j=0; const out=[];
+        while(i<m && j<n){
+          if(a[i]===b[j]){ out.push({t:'same',v:a[i]}); i++; j++; }
+          else if(dp[i+1][j]>=dp[i][j+1]){ out.push({t:'del',v:a[i]}); i++; }
+          else { out.push({t:'add',v:b[j]}); j++; }
+        }
+        while(i<m){ out.push({t:'del',v:a[i]}); i++; }
+        while(j<n){ out.push({t:'add',v:b[j]}); j++; }
+        const box=document.getElementById('diffOut'); box.style.display='block';
+        box.innerHTML = out.map(l=>`<span class="${l.t}">${l.v.replace(/</g,'&lt;')}</span>`).join('');
+        setStatus('Done. Red = removed, green = added.','ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Compare'); };
+    } },
+
+  redact: { html:`
+    <h2>Redact PDF</h2><p class="mdesc">Draws a black box over every occurrence of the word or phrase (case-insensitive).</p>
+    <input type="file" id="f" accept="application/pdf">
+    <label>Word or phrase to redact</label><input type="text" id="term" placeholder="e.g. Confidential Client Name">
+    <button class="btn btn-solid" style="width:100%" id="run">Redact</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); const term=document.getElementById('term').value.trim();
+      if(!files.length) return setStatus('Choose a PDF file.','err'); if(!term) return setStatus('Type a word or phrase.','err');
+      runBtnBusy(e.target,true,'Redact');
+      try{
+        const {pages}=await extractPages(files[0]);
+        const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true});
+        const pdfPages=doc.getPages(); let hits=0;
+        pages.forEach((pInfo,idx)=>{
+          const pg=pdfPages[idx]; const {height}=pg.getSize();
+          pInfo.items.forEach(item=>{
+            if(item.str.toLowerCase().includes(term.toLowerCase())){
+              const tr=item.transform; const x=tr[4], yTop=tr[5]; const w=item.width||item.str.length*6; const h=item.height||10;
+              pg.drawRectangle({x, y: height-yTop-h+2, width:w, height:h+2, color:rgb(0,0,0)});
+              hits++;
+            }
+          });
+        });
+        if(hits===0) return setStatus('No matches found — nothing was redacted.','err');
+        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'redacted.pdf'); setStatus(`Done — ${hits} match(es) redacted.`,'ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Redact'); };
+    } },
+  sign: { html:`
+    <h2>Sign PDF</h2><p class="mdesc">Draw your signature, then place it on a page.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <canvas id="sigpad"></canvas>
+    <button class="btn btn-outline" style="width:100%;margin-bottom:12px" id="clearSig" type="button">Clear signature</button>
+    <div class="row2"><div><label>Page number</label><input type="number" id="pg" value="1" min="1"></div><div><label>Width (pt)</label><input type="number" id="sw" value="150" min="20"></div></div>
+    <div class="row2"><div><label>X position</label><input type="number" id="px" value="300"></div><div><label>Y position (from bottom)</label><input type="number" id="py" value="60"></div></div>
+    <button class="btn btn-solid" style="width:100%" id="run">Add signature</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){
+      const canvas=document.getElementById('sigpad'); const ctx=canvas.getContext('2d');
+      function fit(){ canvas.width=canvas.clientWidth*2; canvas.height=canvas.clientHeight*2; ctx.scale(2,2); ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.strokeStyle='#111'; }
+      fit();
+      let drawing=false, last=null;
+      function pos(e){ const r=canvas.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left), y:(t.clientY-r.top)}; }
+      function down(e){ drawing=true; last=pos(e); e.preventDefault(); }
+      function move(e){ if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; e.preventDefault(); }
+      function up(){ drawing=false; }
+      canvas.addEventListener('mousedown',down); canvas.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+      canvas.addEventListener('touchstart',down); canvas.addEventListener('touchmove',move); canvas.addEventListener('touchend',up);
+      document.getElementById('clearSig').onclick = ()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); };
+      document.getElementById('run').onclick = async (e)=>{
+        const files=filesOf('f'); const pgN=parseInt(document.getElementById('pg').value,10)||1;
+        const sw=parseFloat(document.getElementById('sw').value)||150; const px=parseFloat(document.getElementById('px').value)||0; const py=parseFloat(document.getElementById('py').value)||0;
+        if(!files.length) return setStatus('Choose a PDF file.','err');
+        runBtnBusy(e.target,true,'Add signature');
+        try{
+          const sigBlob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+          const sigBytes=new Uint8Array(await sigBlob.arrayBuffer());
+          const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true});
+          const img=await doc.embedPng(sigBytes); const ratio=img.height/img.width; const dw=sw, dh=sw*ratio;
+          const pages=doc.getPages(); if(pgN<1||pgN>pages.length) return setStatus(`Page must be 1–${pages.length}.`,'err');
+          pages[pgN-1].drawImage(img, {x:px, y:py, width:dw, height:dh});
+          showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'signed.pdf'); setStatus('Done.','ok');
+        }catch(err){ setStatus('Failed: '+err.message,'err'); }
+        runBtnBusy(e.target,false,'Add signature'); };
+    } },
+
+  scan: { html:`
+    <h2>Scan to PDF</h2><p class="mdesc">Capture one or more photos with your camera, then combine them into a PDF.</p>
+    <video id="camvideo" autoplay playsinline></video>
+    <canvas id="camcanvas" style="display:none"></canvas>
+    <div class="thumbstrip" id="thumbs"></div>
+    <button class="btn btn-outline" style="width:100%;margin-bottom:10px" id="capture" type="button">📷 Capture page</button>
+    <button class="btn btn-solid" style="width:100%" id="run">Save as PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){
+      const shots=[]; const video=document.getElementById('camvideo'); const canvas=document.getElementById('camcanvas'); const thumbs=document.getElementById('thumbs');
+      startCam(video);
+      document.getElementById('capture').onclick = ()=>{
+        canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+        canvas.getContext('2d').drawImage(video,0,0);
+        canvas.toBlob(b=>{ shots.push(b); const img=document.createElement('img'); img.src=URL.createObjectURL(b); thumbs.appendChild(img); }, 'image/jpeg', 0.92);
+      };
+      document.getElementById('run').onclick = async (e)=>{
+        if(!shots.length) return setStatus('Capture at least one page first.','err');
+        runBtnBusy(e.target,true,'Save as PDF');
+        try{
+          const doc=await PDFDocument.create();
+          for(const b of shots){ const bytes=new Uint8Array(await b.arrayBuffer()); const img=await doc.embedJpg(bytes); const page=doc.addPage([img.width,img.height]); page.drawImage(img,{x:0,y:0,width:img.width,height:img.height}); }
+          showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'scanned.pdf'); setStatus('Done.','ok');
+        }catch(err){ setStatus('Failed: '+err.message,'err'); }
+        runBtnBusy(e.target,false,'Save as PDF'); };
+    } },
+
+  ocr: { html:`
+    <h2>OCR PDF</h2><p class="mdesc">Makes a scanned PDF searchable. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Run OCR</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Run OCR');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/ocr', fd, 'searchable.pdf'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Run OCR'); };
+    } },
+
+  pdfa: { html:`
+    <h2>PDF to PDF/A</h2><p class="mdesc">Archive-standard conversion. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to PDF/A</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Convert to PDF/A');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/pdfa', fd, 'archive.pdf'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to PDF/A'); };
+    } },
+
+  repair: { html:`
+    <h2>Repair PDF</h2><p class="mdesc">Recovers data from a damaged file. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Repair PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Repair PDF');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/repair', fd, 'repaired.pdf'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Repair PDF'); };
+    } },
+
+  protect: { html:`
+    <h2>Protect PDF</h2><p class="mdesc">Encrypts the file with a password. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <label>Set a password</label><input type="password" id="pw" placeholder="Choose a password">
+    <button class="btn btn-solid" style="width:100%" id="run">Protect PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); const pw=document.getElementById('pw').value;
+      if(!files.length) return setStatus('Choose a PDF file.','err'); if(!pw) return setStatus('Type a password.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Protect PDF');
+      try{ const fd=new FormData(); fd.append('file', files[0]); fd.append('password', pw); await backendFileJob('/protect', fd, 'protected.pdf'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Protect PDF'); };
+    } },
+
+  unlock: { html:`
+    <h2>Unlock PDF</h2><p class="mdesc">Removes a known password. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <label>Current password</label><input type="password" id="pw" placeholder="Enter the PDF's password">
+    <button class="btn btn-solid" style="width:100%" id="run">Unlock PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); const pw=document.getElementById('pw').value;
+      if(!files.length) return setStatus('Choose a PDF file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Unlock PDF');
+      try{ const fd=new FormData(); fd.append('file', files[0]); fd.append('password', pw); await backendFileJob('/unlock', fd, 'unlocked.pdf'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Unlock PDF'); };
+    } },
+
+  forms: { html:`
+    <h2>PDF Forms</h2><p class="mdesc">Fills a PDF's existing fillable fields. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <label>Field values (JSON)</label><textarea id="fields" rows="4" placeholder='{"Name": "Jane Doe", "Date": "2026-07-26"}'></textarea>
+    <button class="btn btn-solid" style="width:100%" id="run">Fill form</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); const fieldsStr=document.getElementById('fields').value.trim();
+      if(!files.length) return setStatus('Choose a PDF file.','err'); if(!fieldsStr) return setStatus('Enter field values as JSON.','err');
+      try{ JSON.parse(fieldsStr); }catch(err){ return setStatus('That JSON is not valid.','err'); }
+      if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Fill form');
+      try{ const fd=new FormData(); fd.append('file', files[0]); fd.append('fields', fieldsStr); await backendFileJob('/forms', fd, 'filled.pdf'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Fill form'); };
+    } },
+
+  aisum: { html:`
+    <h2>AI Summarizer</h2><p class="mdesc">AI-generated summary of your document. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Summarize</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Summarize');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/aisum', fd, 'summary.txt'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Summarize'); };
+    } },
+
+  translate: { html:`
+    <h2>Translate PDF</h2><p class="mdesc">AI-powered translation. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <label>Target language</label><input type="text" id="lang" placeholder="e.g. Spanish, Hindi, French" value="Spanish">
+    <button class="btn btn-solid" style="width:100%" id="run">Translate</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); const lang=document.getElementById('lang').value.trim()||'Spanish';
+      if(!files.length) return setStatus('Choose a PDF file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Translate');
+      try{ const fd=new FormData(); fd.append('file', files[0]); fd.append('target_lang', lang); await backendFileJob('/translate', fd, 'translated.txt'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Translate'); };
+    } },
+
+  word2pdf: { html:`
+    <h2>Word to PDF</h2><p class="mdesc">Converts a .docx file to PDF. Runs on your backend server.</p>
+    <input type="file" id="f" accept=".doc,.docx">
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a .docx file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Convert to PDF');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/word2pdf', fd, 'converted.pdf'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to PDF'); };
+    } },
+
+  ppt2pdf: { html:`
+    <h2>PowerPoint to PDF</h2><p class="mdesc">Converts a .pptx file to PDF. Runs on your backend server.</p>
+    <input type="file" id="f" accept=".ppt,.pptx">
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a .pptx file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Convert to PDF');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/ppt2pdf', fd, 'converted.pdf'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to PDF'); };
+    } },
+
+  xls2pdf: { html:`
+    <h2>Excel to PDF</h2><p class="mdesc">Converts a .xlsx file to PDF. Runs on your backend server.</p>
+    <input type="file" id="f" accept=".xls,.xlsx">
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a .xlsx file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Convert to PDF');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/xls2pdf', fd, 'converted.pdf'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to PDF'); };
+    } },
+
+  pdf2word: { html:`
+    <h2>PDF to Word</h2><p class="mdesc">Converts a PDF to .docx. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to Word</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Convert to Word');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/pdf2word', fd, 'converted.docx'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to Word'); };
+    } },
+
+  pdf2ppt: { html:`
+    <h2>PDF to PowerPoint</h2><p class="mdesc">Converts a PDF to .pptx. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to PowerPoint</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Convert to PowerPoint');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/pdf2ppt', fd, 'converted.pptx'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to PowerPoint'); };
+    } },
+
+  pdf2xls: { html:`
+    <h2>PDF to Excel</h2><p class="mdesc">Converts a PDF to .xlsx. Runs on your backend server.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to Excel</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Convert to Excel');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/pdf2xls', fd, 'converted.xlsx'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to Excel'); };
+    } },
+
+  html2pdf: { html:`
+    <h2>HTML to PDF</h2><p class="mdesc">Converts an .html file to PDF. Runs on your backend server.</p>
+    <input type="file" id="f" accept=".html,.htm">
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose an .html file.','err'); if(needsBackend()) return;
+      runBtnBusy(e.target,true,'Convert to PDF');
+      try{ const fd=new FormData(); fd.append('file', files[0]); await backendFileJob('/html2pdf', fd, 'converted.pdf'); setStatus('Done.','ok'); }
+      catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to PDF'); };
+    } },
 };
+
+/* ============================= camera helpers (Scan to PDF) ============================= */
+let camStream=null;
+async function startCam(videoEl){
+  try{ camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); videoEl.srcObject = camStream; }
+  catch(err){ setStatus('Camera unavailable: '+err.message,'err'); }
+}
+function stopCam(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } }
 </script>
 </body>
 </html>
