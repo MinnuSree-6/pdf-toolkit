@@ -254,7 +254,6 @@ const BUILDERS = {
       }catch(err){ setStatus('Failed: '+err.message,'err'); }
       runBtnBusy(e.target,false,'Apply order'); };
     } },
-
   pagenum: { html:`
     <h2>Page Numbers</h2><p class="mdesc">Adds a centered page number to the bottom of every page.</p>
     <input type="file" id="f" accept="application/pdf">
@@ -268,4 +267,249 @@ const BUILDERS = {
         const pages=doc.getPages();
         pages.forEach((p,i)=>{ const {width}=p.getSize(); const label=`${i+1} / ${pages.length}`; const tw=font.widthOfTextAtSize(label,10);
           p.drawText(label,{x:(width-tw)/2, y:20, size:10, font, color:rgb(0.35,0.35,0.35)}); });
-        showDownload(new Blob([await doc.save()],{type:'appl
+        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'numbered.pdf'); setStatus('Done.','ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Add page numbers'); };
+    } },
+
+  rotate: { html:`
+    <h2>Rotate PDF</h2><p class="mdesc">Rotates every page 90° clockwise.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Rotate PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err');
+      runBtnBusy(e.target,true,'Rotate PDF');
+      try{
+        const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true});
+        doc.getPages().forEach(p=>{ const cur=p.getRotation().angle; p.setRotation(degrees(cur+90)); });
+        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'rotated.pdf'); setStatus('Done.','ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Rotate PDF'); };
+    } },
+
+  crop: { html:`
+    <h2>Crop PDF</h2><p class="mdesc">Trims the same margin (in points, 72pt = 1 inch) from every side of every page.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <label>Margin to trim (points)</label><input type="number" id="margin" value="20" min="0">
+    <button class="btn btn-solid" style="width:100%" id="run">Crop PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); const margin=parseFloat(document.getElementById('margin').value)||0;
+      if(!files.length) return setStatus('Choose a PDF file.','err');
+      runBtnBusy(e.target,true,'Crop PDF');
+      try{
+        const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true});
+        doc.getPages().forEach(p=>{ const {width,height}=p.getSize();
+          p.setCropBox(margin, margin, Math.max(1,width-2*margin), Math.max(1,height-2*margin)); });
+        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'cropped.pdf'); setStatus('Done.','ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Crop PDF'); };
+    } },
+
+  watermark: { html:`
+    <h2>Watermark</h2><p class="mdesc">Stamps text diagonally across every page.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <label>Watermark text</label><input type="text" id="wtext" placeholder="e.g. CONFIDENTIAL" value="CONFIDENTIAL">
+    <button class="btn btn-solid" style="width:100%" id="run">Add watermark</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); const text=document.getElementById('wtext').value.trim()||'WATERMARK';
+      if(!files.length) return setStatus('Choose a PDF file.','err');
+      runBtnBusy(e.target,true,'Add watermark');
+      try{
+        const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true}); const font=await doc.embedFont(StandardFonts.HelveticaBold);
+        doc.getPages().forEach(p=>{ const {width,height}=p.getSize(); const size=Math.min(width,height)/8; const tw=font.widthOfTextAtSize(text,size);
+          p.drawText(text,{x:width/2-tw/2, y:height/2, size, font, color:rgb(0.85,0.2,0.2), opacity:0.25, rotate:degrees(45)}); });
+        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'watermarked.pdf'); setStatus('Done.','ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Add watermark'); };
+    } },
+
+  compress: { html:`
+    <h2>Compress PDF</h2><p class="mdesc">Basic in-browser size optimization by re-saving with object streams.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Compress PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err');
+      runBtnBusy(e.target,true,'Compress PDF');
+      try{
+        const bytesIn = await fileBytes(files[0]);
+        const doc=await PDFDocument.load(bytesIn,{ignoreEncryption:true, updateMetadata:false});
+        const bytesOut = await doc.save({useObjectStreams:true});
+        const pct = Math.max(0, Math.round((1 - bytesOut.length/bytesIn.length)*100));
+        showDownload(new Blob([bytesOut],{type:'application/pdf'}), 'compressed.pdf');
+        setStatus(pct>0 ? `Done — about ${pct}% smaller.` : 'Done. (This file was already fairly optimized — for big savings on scanned/image-heavy PDFs, a server-side compressor works better.)','ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Compress PDF'); };
+    } },
+
+  pdf2jpg: { html:`
+    <h2>PDF to JPG</h2><p class="mdesc">Exports every page as a JPG image, packaged as a ZIP.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to JPG</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err');
+      runBtnBusy(e.target,true,'Convert to JPG');
+      try{
+        const buf = await files[0].arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+        const zip = new JSZip();
+        for(let i=1;i<=pdf.numPages;i++){
+          const page = await pdf.getPage(i); const viewport = page.getViewport({scale:2});
+          const canvas = document.createElement('canvas'); canvas.width=viewport.width; canvas.height=viewport.height;
+          await page.render({canvasContext:canvas.getContext('2d'), viewport}).promise;
+          const blob = await new Promise(res=>canvas.toBlob(res,'image/jpeg',0.9));
+          zip.file(`page-${String(i).padStart(2,'0')}.jpg`, blob);
+        }
+        showDownload(await zip.generateAsync({type:'blob'}), 'pdf-pages.zip'); setStatus(`Done — ${pdf.numPages} pages.`,'ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to JPG'); };
+    } },
+
+  jpg2pdf: { html:`
+    <h2>JPG to PDF</h2><p class="mdesc">Pick one or more images — they'll become pages of a single PDF, in order.</p>
+    <input type="file" id="f" accept="image/*" multiple>
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose at least 1 image.','err');
+      runBtnBusy(e.target,true,'Convert to PDF');
+      try{
+        const doc = await PDFDocument.create();
+        for(const f of files){
+          const bytes = await fileBytes(f);
+          const isPng = f.type.includes('png');
+          const img = isPng ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+          const page = doc.addPage([img.width, img.height]);
+          page.drawImage(img, {x:0,y:0,width:img.width,height:img.height});
+        }
+        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'images.pdf'); setStatus('Done.','ok');
+      }catch(err){ setStatus('Failed: '+err.message+' (tip: only JPG/PNG are supported client-side)','err'); }
+      runBtnBusy(e.target,false,'Convert to PDF'); };
+    } },
+
+  sign: { html:`
+    <h2>Sign PDF</h2><p class="mdesc">Draw your signature, then place it near the bottom of every page.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <label>Draw signature below</label>
+    <canvas id="sigpad"></canvas>
+    <button class="btn btn-outline" type="button" id="clearSig" style="width:100%;margin-bottom:12px;">Clear signature</button>
+    <button class="btn btn-solid" style="width:100%" id="run">Sign PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){
+      const canvas=document.getElementById('sigpad'); const ctx=canvas.getContext('2d');
+      function resize(){ const r=canvas.getBoundingClientRect(); canvas.width=r.width*2; canvas.height=r.height*2; ctx.scale(2,2); ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.strokeStyle='#1c1c1e'; }
+      resize();
+      let drawing=false, hasInk=false;
+      function pos(ev){ const r=canvas.getBoundingClientRect(); const t=ev.touches?ev.touches[0]:ev; return {x:t.clientX-r.left, y:t.clientY-r.top}; }
+      function start(ev){ drawing=true; hasInk=true; const p=pos(ev); ctx.beginPath(); ctx.moveTo(p.x,p.y); ev.preventDefault(); }
+      function move(ev){ if(!drawing) return; const p=pos(ev); ctx.lineTo(p.x,p.y); ctx.stroke(); ev.preventDefault(); }
+      function end(){ drawing=false; }
+      canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+      canvas.addEventListener('touchstart',start); canvas.addEventListener('touchmove',move); canvas.addEventListener('touchend',end);
+      document.getElementById('clearSig').onclick=()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); hasInk=false; };
+      document.getElementById('run').onclick = async (e)=>{
+        const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err');
+        if(!hasInk) return setStatus('Draw your signature first.','err');
+        runBtnBusy(e.target,true,'Sign PDF');
+        try{
+          const sigPng = await new Promise(res=>canvas.toBlob(res,'image/png'));
+          const sigBytes = new Uint8Array(await sigPng.arrayBuffer());
+          const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true});
+          const sigImg = await doc.embedPng(sigBytes);
+          const scale = 140 / sigImg.width;
+          doc.getPages().forEach(p=>{ const {width}=p.getSize();
+            p.drawImage(sigImg, {x:width-160, y:30, width:sigImg.width*scale, height:sigImg.height*scale}); });
+          showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'signed.pdf'); setStatus('Done.','ok');
+        }catch(err){ setStatus('Failed: '+err.message,'err'); }
+        runBtnBusy(e.target,false,'Sign PDF'); };
+    } },
+
+  edit: { html:`
+    <h2>Edit PDF</h2><p class="mdesc">Adds a text box at a chosen position on one page (position measured from the bottom-left corner, in points).</p>
+    <input type="file" id="f" accept="application/pdf">
+    <label>Page number</label><input type="number" id="pg" value="1" min="1">
+    <label>Text to add</label><input type="text" id="etext" placeholder="Your text">
+    <label>X position</label><input type="number" id="ex" value="50">
+    <label>Y position</label><input type="number" id="ey" value="50">
+    <button class="btn btn-solid" style="width:100%" id="run">Add text</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); const pg=parseInt(document.getElementById('pg').value,10)-1;
+      const text=document.getElementById('etext').value; const x=parseFloat(document.getElementById('ex').value)||0; const y=parseFloat(document.getElementById('ey').value)||0;
+      if(!files.length) return setStatus('Choose a PDF file.','err'); if(!text) return setStatus('Type some text to add.','err');
+      runBtnBusy(e.target,true,'Add text');
+      try{
+        const doc=await PDFDocument.load(await fileBytes(files[0]),{ignoreEncryption:true}); const font=await doc.embedFont(StandardFonts.Helvetica);
+        const pages=doc.getPages(); if(pg<0||pg>=pages.length) return setStatus(`Page ${pg+1} is out of range (1–${pages.length}).`,'err');
+        pages[pg].drawText(text,{x,y,size:14,font,color:rgb(0,0,0)});
+        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'edited.pdf'); setStatus('Done.','ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Add text'); };
+    } },
+
+  unlock: { html:`
+    <h2>Unlock PDF</h2><p class="mdesc">Removes a known password so the file opens without one.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <label>Current password</label><input type="password" id="pw" placeholder="Password">
+    <button class="btn btn-solid" style="width:100%" id="run">Unlock PDF</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); const pw=document.getElementById('pw').value;
+      if(!files.length) return setStatus('Choose a PDF file.','err');
+      runBtnBusy(e.target,true,'Unlock PDF');
+      try{
+        const doc=await PDFDocument.load(await fileBytes(files[0]),{password:pw||undefined, ignoreEncryption:true});
+        showDownload(new Blob([await doc.save()],{type:'application/pdf'}), 'unlocked.pdf'); setStatus('Done.','ok');
+      }catch(err){ setStatus('Failed: '+err.message+' — check the password and try again.','err'); }
+      runBtnBusy(e.target,false,'Unlock PDF'); };
+    } },
+
+  /* Server-dependent tools — clear, honest messaging instead of a fake result */
+  scan: { html: backendOnlyHtml('Scan to PDF', 'Capture a scan with your camera and save it as a PDF.'), init(){} },
+  ocr: { html: backendOnlyHtml('OCR PDF', 'Make scanned PDFs searchable.'), init(){} },
+  compare: { html: backendOnlyHtml('Compare PDF', 'Line-by-line text comparison between two PDFs.'), init(){} },
+  redact: { html: backendOnlyHtml('Redact PDF', 'Permanently black out every occurrence of a word or phrase.'), init(){} },
+  pdfa: { html: backendOnlyHtml('PDF to PDF/A', 'Archive-standard conversion.'), init(){} },
+  repair: { html: backendOnlyHtml('Repair PDF', 'Recover data from a damaged file.'), init(){} },
+  html2pdf: { html: backendOnlyHtml('HTML to PDF', 'Convert an .html file to PDF.'), init(){} },
+  protect: { html: backendOnlyHtml('Protect PDF', 'Password-encrypt a PDF.'), init(){} },
+  forms: { html: backendOnlyHtml('PDF Forms', 'Create or fill fillable form fields.'), init(){} },
+  aisum: { html: backendOnlyHtml('AI Summarizer', 'AI-generated summary of your document.'), init(){} },
+  translate: { html: backendOnlyHtml('Translate PDF', 'AI-powered translation to a language of your choice.'), init(){} },
+  word2pdf: { html: backendOnlyHtml('Word to PDF', 'Convert a .docx file to PDF.'), init(){} },
+  ppt2pdf: { html: backendOnlyHtml('PowerPoint to PDF', 'Convert a .pptx file to PDF.'), init(){} },
+  xls2pdf: { html: backendOnlyHtml('Excel to PDF', 'Convert a .xlsx file to PDF.'), init(){} },
+  pdf2word: { html: backendOnlyHtml('PDF to Word', 'Convert a PDF to .docx.'), init(){} },
+  pdf2ppt: { html: backendOnlyHtml('PDF to PowerPoint', 'Convert a PDF to .pptx.'), init(){} },
+  pdf2xls: { html: backendOnlyHtml('PDF to Excel', 'Convert a PDF to .xlsx.'), init(){} },
+
+  pdf2md: { html:`
+    <h2>PDF to Markdown</h2><p class="mdesc">Extracts every page's text as clean Markdown.</p>
+    <input type="file" id="f" accept="application/pdf">
+    <button class="btn btn-solid" style="width:100%" id="run">Convert to Markdown</button>
+    <div class="status" id="status"></div><div class="dl" id="dl"></div>`,
+    init(){ document.getElementById('run').onclick = async (e)=>{
+      const files=filesOf('f'); if(!files.length) return setStatus('Choose a PDF file.','err');
+      runBtnBusy(e.target,true,'Convert to Markdown');
+      try{
+        const buf = await files[0].arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+        let md = '';
+        for(let i=1;i<=pdf.numPages;i++){
+          const page = await pdf.getPage(i); const content = await page.getTextContent();
+          const text = content.items.map(it=>it.str).join(' ');
+          md += `## Page ${i}\n\n${text}\n\n`;
+        }
+        showDownload(new Blob([md],{type:'text/markdown'}), 'document.md'); setStatus(`Done — ${pdf.numPages} pages.`,'ok');
+      }catch(err){ setStatus('Failed: '+err.message,'err'); }
+      runBtnBusy(e.target,false,'Convert to Markdown'); };
+    } },
+
+};
+</script>
+</body>
+</html>
