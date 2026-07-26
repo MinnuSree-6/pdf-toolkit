@@ -4,376 +4,366 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PDF Toolkit — Real PDF tools, free to use</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <style>
   :root{
-    --bg:#FCE9ED;
-    --card:#FFFFFF;
-    --ink:#161522;
-    --ink-soft:#5b596b;
-    --accent:#E43A55;
-    --border:#F5D3DB;
-    --dark-btn:#161522;
-    --success:#1E9E6B;
+    --bg:#fdecef;
+    --card:#ffffff;
+    --red:#e14b41;
+    --red-dark:#c93c33;
+    --ink:#1c1c1e;
+    --muted:#8a8a8e;
+    --border:#f3d6da;
   }
   *{box-sizing:border-box;}
-  body{
-    margin:0;
-    background:var(--bg);
-    font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color:var(--ink);
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  a{color:inherit;}
+  .topbar-strip{height:6px;background:#111;}
+  header.nav{
+    max-width:1100px;margin:20px auto 0;padding:14px 20px;background:#fff;border-radius:24px;
+    display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(0,0,0,0.04);
   }
-  header{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:18px 28px; background:var(--bg); position:sticky; top:0; z-index:50;
-    border-bottom:1px solid rgba(0,0,0,0.03);
-  }
-  .brand{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:18px; }
-  .brand span.heart{ color:var(--accent); }
-  .header-actions{ display:flex; gap:10px; }
-  .btn{
-    border-radius:999px; padding:10px 20px; font-weight:600; font-size:14px;
-    border:none; cursor:pointer; transition:transform .15s ease, opacity .15s ease;
-  }
-  .btn:active{ transform:scale(0.97); }
-  .btn-outline{ background:transparent; border:1.5px solid var(--accent); color:var(--accent); }
-  .btn-solid{ background:var(--accent); color:#fff; }
-  .btn-dark{ background:var(--dark-btn); color:#fff; width:100%; padding:14px; font-size:15px; border-radius:999px; }
-  .btn-dark:disabled{ opacity:.45; cursor:not-allowed; }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;}
+  .brand .heart{color:var(--red);font-size:22px;}
+  .nav-actions{display:flex;gap:10px;}
+  .btn{border-radius:999px;padding:10px 20px;font-weight:600;font-size:14px;cursor:pointer;border:2px solid transparent;transition:.15s;}
+  .btn-outline{background:#fff;color:var(--red);border-color:var(--red);}
+  .btn-outline:hover{background:#fff5f4;}
+  .btn-solid{background:var(--red);color:#fff;}
+  .btn-solid:hover{background:var(--red-dark);}
+  .btn-dark{background:#15151a;color:#fff;border-radius:14px;width:100%;padding:14px;font-size:15px;}
+  .btn-dark:hover{background:#000;}
 
-  main{ max-width:1040px; margin:0 auto; padding:36px 20px 90px; }
-  .hero h1{ font-size:clamp(28px,4vw,42px); line-height:1.15; text-align:center; margin:10px 0 6px; }
-  .hero p.sub{ text-align:center; color:var(--ink-soft); margin-bottom:34px; font-size:16px; }
+  .hero{max-width:800px;margin:64px auto 40px;text-align:center;padding:0 24px;}
+  .hero h1{font-size:40px;line-height:1.15;font-weight:800;letter-spacing:-0.5px;margin:0;}
 
-  .grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:18px; margin-bottom:44px; }
+  .grid{max-width:1100px;margin:0 auto;padding:20px 20px 10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;}
   .card{
-    background:var(--card); border:1px solid var(--border); border-radius:22px;
-    padding:22px; display:flex; flex-direction:column; gap:10px; min-height:170px;
+    background:var(--card);border-radius:22px;padding:22px;border:1px solid var(--border);
+    cursor:pointer;transition:.15s;position:relative;
   }
+  .card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,0.06);}
+  .card.disabled{cursor:default;}
+  .card.disabled:hover{transform:none;box-shadow:none;}
   .icon{
-    width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center;
-    color:#fff; font-weight:700; font-size:18px;
+    width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+    font-size:22px;color:#fff;font-weight:700;margin-bottom:16px;
   }
-  .card h3{ margin:2px 0 0; font-size:18px; }
-  .card p.desc{ margin:0; color:var(--ink-soft); font-size:14px; line-height:1.4; flex-grow:1; }
-  .card.disabled p.desc{ font-style:normal; }
-  .badge-soon{ font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.03em; text-transform:uppercase; }
+  .card h3{margin:0 0 8px;font-size:17px;font-weight:700;}
+  .card p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.4;}
 
-  .tool-open{ background:var(--dark-btn); color:#fff; border:none; border-radius:999px; padding:10px 16px; font-size:13px; font-weight:600; cursor:pointer; align-self:flex-start; }
-  .tool-open:hover{ opacity:.9; }
+  section.pricing{max-width:1100px;margin:70px auto 20px;padding:0 20px;}
+  .pricing h2{text-align:center;font-size:30px;font-weight:800;margin-bottom:6px;}
+  .pricing .sub{text-align:center;color:var(--muted);margin-bottom:28px;font-size:14px;}
+  .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;}
+  .plan{background:#fff;border:1px solid var(--border);border-radius:22px;padding:26px;text-align:center;}
+  .plan .tag{color:var(--red);font-weight:700;font-size:12px;letter-spacing:.06em;}
+  .plan .price{font-size:34px;font-weight:800;margin:6px 0;}
+  .plan .price span{font-size:14px;font-weight:500;color:var(--muted);}
+  .plan .desc{color:var(--muted);font-size:13.5px;margin-bottom:14px;}
+  .plan ul{list-style:none;padding:0;margin:0 0 18px;text-align:left;font-size:13.5px;color:#333;}
+  .plan li{padding:5px 0;}
+  .plan li:before{content:"✓ ";color:var(--red);font-weight:700;}
 
-  section.section-title{ font-size:22px; font-weight:700; margin:44px 0 18px; }
+  footer{text-align:center;color:var(--muted);font-size:12.5px;padding:40px 20px 60px;}
 
-  .pricing-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:18px; }
-  .plan{ background:var(--card); border:1px solid var(--border); border-radius:22px; padding:26px; text-align:center; }
-  .plan .eyebrow{ color:var(--accent); font-weight:700; font-size:12px; letter-spacing:.04em; }
-  .plan .price{ font-size:34px; font-weight:800; margin:6px 0 4px; }
-  .plan .price sub{ font-size:14px; color:var(--ink-soft); font-weight:500; }
-  .plan .tag{ color:var(--ink-soft); font-size:14px; margin-bottom:14px; }
-  .plan ul{ list-style:none; padding:0; margin:0 0 18px; text-align:left; }
-  .plan ul li{ font-size:14px; padding:4px 0; padding-left:20px; position:relative; color:var(--ink); }
-  .plan ul li::before{ content:"•"; position:absolute; left:0; color:var(--accent); }
-  .footnote{ text-align:center; color:var(--ink-soft); font-size:13px; margin-top:30px; }
-
-  /* Modal */
-  .overlay{ position:fixed; inset:0; background:rgba(20,20,30,.5); display:none; align-items:center; justify-content:center; z-index:100; padding:16px; }
-  .overlay.active{ display:flex; }
-  .modal{ background:#fff; border-radius:20px; padding:26px; max-width:480px; width:100%; max-height:86vh; overflow-y:auto; }
-  .modal h2{ margin-top:0; font-size:20px; }
-  .modal .close{ float:right; background:none; border:none; font-size:20px; cursor:pointer; color:var(--ink-soft); }
-  .drop{
-    border:2px dashed var(--border); border-radius:16px; padding:28px 14px; text-align:center;
-    color:var(--ink-soft); font-size:14px; cursor:pointer; margin:14px 0;
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(20,10,10,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:50;}
+  .overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:24px;max-width:460px;width:100%;padding:28px;max-height:88vh;overflow-y:auto;}
+  .modal h2{margin:0 0 4px;font-size:20px;}
+  .modal .mdesc{color:var(--muted);font-size:13.5px;margin:0 0 18px;}
+  .modal input[type=file],.modal input[type=text],.modal input[type=password],.modal input[type=number]{
+    width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;margin-bottom:12px;background:#fffafa;
   }
-  .drop.drag{ border-color:var(--accent); color:var(--accent); }
-  .filelist{ font-size:13px; margin:10px 0; max-height:140px; overflow-y:auto; }
-  .filelist div{ padding:6px 10px; background:#FBF3F5; border-radius:10px; margin-bottom:6px; display:flex; justify-content:space-between; gap:8px; }
-  .opt-row{ margin:12px 0; font-size:14px; }
-  .opt-row label{ display:block; margin-bottom:6px; font-weight:600; }
-  .opt-row input[type=text], .opt-row input[type=number]{
-    width:100%; padding:9px 12px; border-radius:10px; border:1px solid var(--border); font-size:14px;
-  }
-  .status{ font-size:13px; margin-top:10px; min-height:18px; }
-  .status.ok{ color:var(--success); }
-  .status.err{ color:var(--accent); }
-  .hidden-input{ display:none; }
+  .modal label{font-size:12.5px;font-weight:700;color:#555;display:block;margin:10px 0 4px;}
+  .filelist{font-size:12.5px;color:var(--muted);margin:-6px 0 10px;}
+  .close-x{position:absolute;top:18px;right:20px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);}
+  .status{font-size:13px;margin-top:12px;min-height:18px;}
+  .status.err{color:var(--red-dark);}
+  .status.ok{color:#1c7a3a;}
+  .dl{display:none;margin-top:12px;text-align:center;background:#eafaf0;border:1px solid #bfe8cd;border-radius:14px;padding:14px;}
+  .dl a{color:#1c7a3a;font-weight:700;text-decoration:none;}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px;}
+  @keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="brand"><span class="heart">❤</span> PDF Toolkit</div>
-  <div class="header-actions">
-    <button class="btn btn-outline" onclick="alert('Hook this up to your auth provider (e.g. Clerk, Supabase Auth, Firebase Auth). Not wired to a live backend here.')">Sign up</button>
+<div class="topbar-strip"></div>
+<header class="nav">
+  <div class="brand"><span class="heart">❤️</span> PDF Toolkit</div>
+  <div class="nav-actions">
+    <button class="btn btn-outline" onclick="alert('Accounts aren\'t wired up in this demo — hook up your own auth provider (e.g. Clerk, Supabase Auth) to enable Sign up.')">Sign up</button>
     <button class="btn btn-solid" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Upgrade</button>
   </div>
 </header>
 
-<main>
-  <div class="hero">
-    <h1>Real PDF tools. Free to use.<br>Yours in seconds.</h1>
-    <p class="sub">Everything below with an "Open tool" button runs live, right in your browser — no upload to any server.</p>
+<section class="hero">
+  <h1>Real PDF tools. Free to use.<br>Yours in seconds.</h1>
+</section>
+
+<div class="grid" id="toolGrid"></div>
+
+<section class="pricing" id="pricing">
+  <h2>Upgrade when you need more</h2>
+  <p class="sub">All plans billed in INR · Secure checkout via Razorpay</p>
+  <div class="plans">
+    <div class="plan">
+      <div class="tag">WEEKLY</div>
+      <div class="price">₹99<span>/week</span></div>
+      <div class="desc">Great for a short-term crunch.</div>
+      <ul><li>Unlimited jobs for 7 days</li><li>No daily limit</li><li>Cancel anytime</li></ul>
+      <button class="btn-dark" onclick="payStub('weekly')">Choose Weekly</button>
+    </div>
+    <div class="plan">
+      <div class="tag">MONTHLY</div>
+      <div class="price">₹349<span>/month</span></div>
+      <div class="desc">Best value for regular use.</div>
+      <ul><li>Unlimited jobs for 1 month</li><li>No daily limit</li><li>Cancel anytime</li></ul>
+      <button class="btn-dark" onclick="payStub('monthly')">Choose Monthly</button>
+    </div>
+    <div class="plan">
+      <div class="tag">PRO · MOST POPULAR</div>
+      <div class="price">₹649<span>/month</span></div>
+      <div class="desc">Our most popular plan.</div>
+      <ul><li>Unlimited daily jobs</li><li>Larger file size support</li><li>Priority access to new tools</li></ul>
+      <button class="btn-dark" onclick="payStub('pro')">Choose Pro</button>
+    </div>
+    <div class="plan">
+      <div class="tag">MAX</div>
+      <div class="price">₹949<span>/month</span></div>
+      <div class="desc">For power users and teams.</div>
+      <ul><li>Everything in Pro</li><li>Higher file size &amp; usage limits</li><li>Priority access &amp; support</li></ul>
+      <button class="btn-dark" onclick="payStub('max')">Choose Max</button>
+    </div>
   </div>
+</section>
 
-  <div class="grid" id="toolGrid"></div>
-
-  <section id="pricing">
-    <div class="section-title">Upgrade when you need more</div>
-    <div class="pricing-grid" id="pricingGrid"></div>
-    <p class="footnote">All plans billed in INR · Secure checkout via Razorpay</p>
-  </section>
-</main>
+<footer>PDF Toolkit demo build — all processing above happens locally in your browser. No files are uploaded anywhere.</footer>
 
 <div class="overlay" id="overlay">
-  <div class="modal" id="modalBody"></div>
+  <div class="modal" id="modalBox">
+    <button class="close-x" onclick="closeModal()">✕</button>
+    <div id="modalContent"></div>
+  </div>
 </div>
 
 <script>
-/* ---------------- TOOL + PLAN DATA ---------------- */
+/* ---------------- Tool catalogue (mirrors the screenshots) ---------------- */
 const TOOLS = [
-  {id:'merge', name:'Merge PDF', color:'#E4547A', icon:'⇲', desc:'Combine multiple PDFs into one, in the order you choose.', live:true},
-  {id:'split', name:'Split PDF', color:'#E4547A', icon:'⇄', desc:'Break a PDF into individual pages, downloaded as a ZIP.', live:true},
-  {id:'rotate', name:'Rotate PDF', color:'#E4547A', icon:'↻', desc:'Rotate every page 90° clockwise.', live:true},
-  {id:'pdf2jpg', name:'PDF to JPG', color:'#E0A62E', icon:'🖼', desc:'Export every page as a JPG image (ZIP download).', live:true},
-  {id:'jpg2pdf', name:'JPG to PDF', color:'#E0A62E', icon:'🖼', desc:'Convert one or more images into a single PDF.', live:true},
-  {id:'watermark', name:'Watermark', color:'#8B5CF6', icon:'💧', desc:'Stamp text diagonally across every page.', live:true},
-  {id:'crop', name:'Crop PDF', color:'#8B5CF6', icon:'⛶', desc:'Trim margins from every page by a set amount.', live:true},
-  {id:'organize', name:'Organize PDF', color:'#E4547A', icon:'☰', desc:'Reorder or remove pages by typing the new page order.', live:true},
-  {id:'pagenum', name:'Page Numbers', color:'#8B5CF6', icon:'#', desc:'Add page numbers to the bottom of every page.', live:true},
-  {id:'compress', name:'Compress PDF', color:'#2FAE6B', icon:'⇲', desc:'Basic in-browser size optimization.', live:true},
-  {id:'unlock', name:'Unlock PDF', color:'#3B7DE0', icon:'🔓', desc:'Remove a known password — coming with Pro backend.', live:false},
-  {id:'protect', name:'Protect PDF', color:'#E4547A', icon:'🔒', desc:'Password-encrypt a PDF — coming with Pro backend.', live:false},
-  {id:'html2pdf', name:'HTML to PDF', color:'#E0A62E', icon:'<>', desc:'Requires a server-side engine — coming with Pro backend.', live:false},
-  {id:'scan', name:'Scan to PDF', color:'#E53E3E', icon:'📷', desc:'Capture a scan from your camera — coming with Pro backend.', live:false},
-  {id:'ocr', name:'OCR PDF', color:'#2FAE6B', icon:'OCR', desc:'Make scanned PDFs searchable — coming with Pro backend.', live:false},
-  {id:'compare', name:'Compare PDF', color:'#3B7DE0', icon:'⤨', desc:'Side-by-side comparison — coming with Pro backend.', live:false},
-  {id:'redact', name:'Redact PDF', color:'#3B7DE0', icon:'■', desc:'Permanently remove sensitive content — coming with Pro backend.', live:false},
-  {id:'sign', name:'Sign PDF', color:'#3B7DE0', icon:'✎', desc:'E-signatures — coming with Pro backend.', live:false},
-  {id:'pdf2word', name:'PDF to Word', color:'#3B7DE0', icon:'W', desc:'Requires a server-side engine — coming with Pro backend.', live:false},
-  {id:'pdf2ppt', name:'PDF to PowerPoint', color:'#E53E3E', icon:'P', desc:'Requires a server-side engine — coming with Pro backend.', live:false},
-  {id:'pdf2xls', name:'PDF to Excel', color:'#2FAE6B', icon:'X', desc:'Requires a server-side engine — coming with Pro backend.', live:false},
-  {id:'word2pdf', name:'Word to PDF', color:'#3B7DE0', icon:'W', desc:'Requires a server-side engine — coming with Pro backend.', live:false},
-  {id:'ppt2pdf', name:'PowerPoint to PDF', color:'#E53E3E', icon:'P', desc:'Requires a server-side engine — coming with Pro backend.', live:false},
-  {id:'xls2pdf', name:'Excel to PDF', color:'#2FAE6B', icon:'X', desc:'Requires a server-side engine — coming with Pro backend.', live:false},
-  {id:'editpdf', name:'Edit PDF', color:'#8B5CF6', icon:'✎', desc:'Add text, shapes, annotations — coming with Pro backend.', live:false},
-  {id:'pdfa', name:'PDF to PDF/A', color:'#3B7DE0', icon:'▤', desc:'Archive-standard conversion — coming with Pro backend.', live:false},
-  {id:'repair', name:'Repair PDF', color:'#2FAE6B', icon:'🔧', desc:'Recover data from a damaged file — coming with Pro backend.', live:false},
-  {id:'forms', name:'PDF Forms', color:'#8B5CF6', icon:'☑', desc:'Create or fill fillable forms — coming with Pro backend.', live:false},
-  {id:'aisum', name:'AI Summarizer', color:'#3B7DE0', icon:'✦', desc:'AI-generated summaries — coming with Pro backend.', live:false},
-  {id:'translate', name:'Translate PDF', color:'#E4547A', icon:'🌐', desc:'AI-powered translation — coming with Pro backend.', live:false},
-  {id:'md', name:'PDF to Markdown', color:'#8B5CF6', icon:'▤', desc:'Convert PDFs into clean Markdown — coming with Pro backend.', live:false},
+  {id:'merge', name:'Merge PDF', color:'#e14b41', icon:'⇲', desc:'Combine multiple PDFs into one, in the order you choose.', pro:false},
+  {id:'split', name:'Split PDF', color:'#e14b41', icon:'⇱', desc:'Break a PDF into individual pages, downloaded as a ZIP.', pro:false},
+  {id:'scan', name:'Scan to PDF', color:'#e14b41', icon:'📷', desc:'Capture a scan from your camera — coming with Pro backend.', pro:true},
+  {id:'ocr', name:'OCR PDF', color:'#2e9e5b', icon:'OCR', desc:'Make scanned PDFs searchable — coming with Pro backend.', pro:true},
+  {id:'compare', name:'Compare PDF', color:'#3f6bd1', icon:'⇄', desc:'Side-by-side comparison — coming with Pro backend.', pro:true},
+  {id:'redact', name:'Redact PDF', color:'#3f6bd1', icon:'■', desc:'Permanently remove sensitive content — coming with Pro backend.', pro:true},
+  {id:'organize', name:'Organize PDF', color:'#d1447e', icon:'⧉', desc:'Reorder or remove pages by typing the new page order.', pro:false},
+  {id:'pdfa', name:'PDF to PDF/A', color:'#3f6bd1', icon:'▤', desc:'Archive-standard conversion — coming with Pro backend.', pro:true},
+  {id:'repair', name:'Repair PDF', color:'#2e9e5b', icon:'🔧', desc:'Recover data from a damaged file — coming with Pro backend.', pro:true},
+  {id:'pagenum', name:'Page Numbers', color:'#8a4fd1', icon:'#', desc:'Add page numbers to the bottom of every page.', pro:false},
+  {id:'rotate', name:'Rotate PDF', color:'#d1447e', icon:'↻', desc:'Rotate every page 90° clockwise.', pro:false},
+  {id:'html2pdf', name:'HTML to PDF', color:'#d1a01f', icon:'⟨⟩', desc:'Requires a server-side engine — coming with Pro backend.', pro:true},
+  {id:'unlock', name:'Unlock PDF', color:'#3f6bd1', icon:'🔓', desc:'Remove a known password.', pro:false},
+  {id:'protect', name:'Protect PDF', color:'#d1447e', icon:'🔒', desc:'Password-encrypt a PDF — coming with Pro backend.', pro:true},
+  {id:'crop', name:'Crop PDF', color:'#8a4fd1', icon:'⤢', desc:'Trim margins from every page by a set amount.', pro:false},
+  {id:'forms', name:'PDF Forms', color:'#8a4fd1', icon:'☑', desc:'Create or fill fillable forms — coming with Pro backend.', pro:true},
+  {id:'aisum', name:'AI Summarizer', color:'#3f6bd1', icon:'✦', desc:'AI-generated summaries — coming with Pro backend.', pro:true},
+  {id:'translate', name:'Translate PDF', color:'#d1447e', icon:'🌐', desc:'AI-powered translation — coming with Pro backend.', pro:true},
+  {id:'pdf2jpg', name:'PDF to JPG', color:'#d1a01f', icon:'🖼', desc:'Export every page as a JPG image (ZIP download).', pro:false},
+  {id:'jpg2pdf', name:'JPG to PDF', color:'#d1a01f', icon:'🖼', desc:'Convert one or more images into a single PDF.', pro:false},
+  {id:'sign', name:'Sign PDF', color:'#3f6bd1', icon:'✎', desc:'E-signatures — coming with Pro backend.', pro:true},
+  {id:'watermark', name:'Watermark', color:'#8a4fd1', icon:'💧', desc:'Stamp text diagonally across every page.', pro:false},
+  {id:'word2pdf', name:'Word to PDF', color:'#3f6bd1', icon:'W', desc:'Requires a server-side engine — coming with Pro backend.', pro:true},
+  {id:'ppt2pdf', name:'PowerPoint to PDF', color:'#e14b41', icon:'P', desc:'Requires a server-side engine — coming with Pro backend.', pro:true},
+  {id:'xls2pdf', name:'Excel to PDF', color:'#2e9e5b', icon:'X', desc:'Requires a server-side engine — coming with Pro backend.', pro:true},
+  {id:'edit', name:'Edit PDF', color:'#8a4fd1', icon:'✎', desc:'Add text, shapes, annotations — coming with Pro backend.', pro:true},
+  {id:'compress', name:'Compress PDF', color:'#2e9e5b', icon:'⇔', desc:'Basic in-browser size optimization.', pro:false},
+  {id:'pdf2word', name:'PDF to Word', color:'#3f6bd1', icon:'W', desc:'Requires a server-side engine — coming with Pro backend.', pro:true},
+  {id:'pdf2ppt', name:'PDF to PowerPoint', color:'#e14b41', icon:'P', desc:'Requires a server-side engine — coming with Pro backend.', pro:true},
+  {id:'pdf2xls', name:'PDF to Excel', color:'#2e9e5b', icon:'X', desc:'Requires a server-side engine — coming with Pro backend.', pro:true},
+  {id:'pdf2md', name:'PDF to Markdown', color:'#8a4fd1', icon:'▤', desc:'Convert PDFs into clean Markdown — coming with Pro backend.', pro:true},
 ];
 
-const PLANS = [
-  {id:'weekly', label:'WEEKLY', price:99, unit:'/week', tag:'Great for a short-term crunch.', features:['Unlimited jobs for 7 days','No daily limit','Cancel anytime']},
-  {id:'monthly', label:'MONTHLY', price:349, unit:'/month', tag:'Best value for regular use.', features:['Unlimited jobs for 1 month','No daily limit','Cancel anytime']},
-  {id:'pro', label:'PRO · MOST POPULAR', price:649, unit:'/month', tag:'Our most popular plan.', features:['Unlimited daily jobs','Larger file size support','Priority access to new tools']},
-  {id:'max', label:'MAX', price:949, unit:'/month', tag:'For power users and teams.', features:['Everything in Pro','Higher file size & usage limits','Priority access & support']},
-];
-
-/* ---------------- RENDER GRID ---------------- */
 const grid = document.getElementById('toolGrid');
 TOOLS.forEach(t=>{
   const card = document.createElement('div');
-  card.className = 'card' + (t.live ? '' : ' disabled');
+  card.className = 'card' + (t.pro ? ' disabled' : '');
   card.innerHTML = `
     <div class="icon" style="background:${t.color}">${t.icon}</div>
     <h3>${t.name}</h3>
-    <p class="desc">${t.desc}</p>
-    ${t.live ? `<button class="tool-open" data-tool="${t.id}">Open tool</button>` : ``}
+    <p>${t.desc}</p>
   `;
+  card.onclick = () => t.pro ? document.getElementById('pricing').scrollIntoView({behavior:'smooth'}) : openTool(t.id);
   grid.appendChild(card);
 });
-grid.addEventListener('click', e=>{
-  const btn = e.target.closest('.tool-open');
-  if(btn) openTool(btn.dataset.tool);
-});
 
-const pricingGrid = document.getElementById('pricingGrid');
-PLANS.forEach(p=>{
-  const el = document.createElement('div');
-  el.className = 'plan';
-  el.innerHTML = `
-    <div class="eyebrow">${p.label}</div>
-    <div class="price">₹${p.price}<sub>${p.unit}</sub></div>
-    <div class="tag">${p.tag}</div>
-    <ul>${p.features.map(f=>`<li>${f}</li>`).join('')}</ul>
-    <button class="btn btn-dark" data-plan="${p.id}">Choose ${p.label.split(' ')[0].charAt(0)+p.label.split(' ')[0].slice(1).toLowerCase()}</button>
-  `;
-  pricingGrid.appendChild(el);
-});
-pricingGrid.addEventListener('click', e=>{
-  const btn = e.target.closest('button[data-plan]');
-  if(btn) startCheckout(btn.dataset.plan);
-});
+function payStub(plan){
+  alert('This demo has no payment backend wired up.\n\nTo take real payments, create a Razorpay order from a small server function (Vercel/Netlify function or Node/Express) and open Razorpay Checkout with the order id. See the README for the exact steps.\n\nPlan selected: ' + plan);
+}
 
-/* ---------------- MODAL HELPERS ---------------- */
+/* ---------------- Modal plumbing ---------------- */
 const overlay = document.getElementById('overlay');
-const modalBody = document.getElementById('modalBody');
-function closeModal(){ overlay.classList.remove('active'); modalBody.innerHTML=''; }
+const modalContent = document.getElementById('modalContent');
+function closeModal(){ overlay.classList.remove('show'); modalContent.innerHTML=''; }
 overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
 
-function showModal(html){
-  modalBody.innerHTML = `<button class="close" onclick="closeModal()">✕</button>` + html;
-  overlay.classList.add('active');
-}
-
-function setupDropzone(dz, input, multiple, onFiles){
-  dz.addEventListener('click', ()=>input.click());
-  dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('drag'); });
-  dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
-  dz.addEventListener('drop', e=>{
-    e.preventDefault(); dz.classList.remove('drag');
-    onFiles(multiple ? Array.from(e.dataTransfer.files) : [e.dataTransfer.files[0]]);
-  });
-  input.addEventListener('change', ()=>{
-    onFiles(multiple ? Array.from(input.files) : [input.files[0]]);
-  });
-}
-
-function fileListHTML(files){
-  return `<div class="filelist">${files.map(f=>`<div><span>${f.name}</span><span>${(f.size/1024).toFixed(0)} KB</span></div>`).join('')}</div>`;
-}
-
-function setStatus(el, msg, kind){
-  el.textContent = msg;
+function setStatus(msg, kind){
+  const el = document.getElementById('status');
+  if(!el) return;
+  el.textContent = msg || '';
   el.className = 'status' + (kind ? ' '+kind : '');
 }
-
-function downloadBlob(blob, filename){
+function showDownload(blob, filename){
+  const dl = document.getElementById('dl');
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  dl.innerHTML = `⬇ <a href="${url}" download="${filename}">Download ${filename}</a>`;
+  dl.style.display = 'block';
 }
-
-/* ---------------- TOOL IMPLEMENTATIONS ---------------- */
-const { PDFDocument, degrees, rgb, StandardFonts } = PDFLib;
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+function runBtnBusy(btn, busy, label){
+  btn.disabled = busy;
+  btn.innerHTML = busy ? `<span class="spin"></span>Working…` : label;
+}
 
 function openTool(id){
-  const map = {
-    merge: toolMerge, split: toolSplit, rotate: toolRotate,
-    pdf2jpg: toolPdf2Jpg, jpg2pdf: toolJpg2Pdf, watermark: toolWatermark,
-    crop: toolCrop, organize: toolOrganize, pagenum: toolPageNum, compress: toolCompress,
-  };
-  map[id]();
+  overlay.classList.add('show');
+  const build = BUILDERS[id];
+  modalContent.innerHTML = build.html;
+  build.init();
 }
 
-/* MERGE */
-function toolMerge(){
-  showModal(`
-    <h2>Merge PDF</h2>
-    <p style="color:var(--ink-soft);font-size:14px">Add PDFs in the order you want them merged.</p>
-    <div class="drop" id="dz">Tap or drop PDF files here (multiple allowed)</div>
-    <input type="file" id="fi" class="hidden-input" accept="application/pdf" multiple>
-    <div id="flist"></div>
-    <button class="btn-dark" id="run" disabled>Merge & download</button>
-    <div class="status" id="st"></div>
-  `);
-  let files = [];
-  const dz=document.getElementById('dz'), fi=document.getElementById('fi'), run=document.getElementById('run'), st=document.getElementById('st'), flist=document.getElementById('flist');
-  setupDropzone(dz, fi, true, fs=>{
-    files = files.concat(fs.filter(f=>f.type==='application/pdf'));
-    flist.innerHTML = fileListHTML(files);
-    run.disabled = files.length < 2;
-  });
-  run.onclick = async ()=>{
-    setStatus(st,'Merging…');
-    try{
-      const merged = await PDFDocument.create();
-      for(const f of files){
-        const bytes = await f.arrayBuffer();
-        const src = await PDFDocument.load(bytes);
-        const pages = await merged.copyPages(src, src.getPageIndices());
-        pages.forEach(p=>merged.addPage(p));
-      }
-      const out = await merged.save();
-      downloadBlob(new Blob([out],{type:'application/pdf'}), 'merged.pdf');
-      setStatus(st,'Done — download started.','ok');
-    }catch(e){ setStatus(st,'Error: '+e.message,'err'); }
-  };
-}
+/* helper: read <input type=file> as array of File */
+function filesOf(inputId){ return Array.from(document.getElementById(inputId).files || []); }
+async function fileBytes(file){ return new Uint8Array(await file.arrayBuffer()); }
 
-/* SPLIT */
-function toolSplit(){
-  showModal(`
-    <h2>Split PDF</h2>
-    <p style="color:var(--ink-soft);font-size:14px">Every page becomes its own PDF, zipped together.</p>
-    <div class="drop" id="dz">Tap or drop a PDF file here</div>
-    <input type="file" id="fi" class="hidden-input" accept="application/pdf">
-    <div id="flist"></div>
-    <button class="btn-dark" id="run" disabled>Split & download ZIP</button>
-    <div class="status" id="st"></div>
-  `);
-  let file=null;
-  const dz=document.getElementById('dz'), fi=document.getElementById('fi'), run=document.getElementById('run'), st=document.getElementById('st'), flist=document.getElementById('flist');
-  setupDropzone(dz, fi, false, fs=>{ file=fs[0]; flist.innerHTML=fileListHTML([file]); run.disabled=!file; });
-  run.onclick = async ()=>{
-    setStatus(st,'Splitting…');
-    try{
-      const bytes = await file.arrayBuffer();
-      const src = await PDFDocument.load(bytes);
-      const zip = new JSZip();
-      for(let i=0;i<src.getPageCount();i++){
-        const doc = await PDFDocument.create();
-        const [p] = await doc.copyPages(src,[i]);
-        doc.addPage(p);
-        const out = await doc.save();
-        zip.file(`page-${i+1}.pdf`, out);
-      }
-      const blob = await zip.generateAsync({type:'blob'});
-      downloadBlob(blob, 'split-pages.zip');
-      setStatus(st,'Done — download started.','ok');
-    }catch(e){ setStatus(st,'Error: '+e.message,'err'); }
-  };
-}
+/* ---------------- Per-tool UI + logic ---------------- */
+const { PDFDocument, degrees, rgb, StandardFonts } = window.PDFLib || {};
+if(window['pdfjsLib']) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-/* ROTATE */
-function toolRotate(){
-  showModal(`
-    <h2>Rotate PDF</h2>
-    <p style="color:var(--ink-soft);font-size:14px">Rotates every page 90° clockwise.</p>
-    <div class="drop" id="dz">Tap or drop a PDF file here</div>
-    <input type="file" id="fi" class="hidden-input" accept="application/pdf">
-    <div id="flist"></div>
-    <button class="btn-dark" id="run" disabled>Rotate & download</button>
-    <div class="status" id="st"></div>
-  `);
-  let file=null;
-  const dz=document.getElementById('dz'), fi=document.getElementById('fi'), run=document.getElementById('run'), st=document.getElementById('st'), flist=document.getElementById('flist');
-  setupDropzone(dz, fi, false, fs=>{ file=fs[0]; flist.innerHTML=fileListHTML([file]); run.disabled=!file; });
-  run.onclick = async ()=>{
-    setStatus(st,'Rotating…');
-    try{
-      const bytes = await file.arrayBuffer();
-      const doc = await PDFDocument.load(bytes);
-      doc.getPages().forEach(p=>{
-        const cur = p.getRotation().angle;
-        p.setRotation(degrees(cur+90));
-      });
-      const out = await doc.save();
-      downloadBlob(new Blob([out],{type:'application/pdf'}), 'rotated.pdf');
-      setStatus(st,'Done — download started.','ok');
-    }catch(e){ setStatus(st,'Error: '+e.message,'err'); }
-  };
-}
+const BUILDERS = {
 
-/* PDF TO JPG */
-function toolPdf2Jpg(){
-  showModal(`
-    <h2>PDF to JPG</h2>
-    <p style="color:var(--ink-soft);font-size:14px">Every page is exported as a JPG, zipped together.</p>
-    <div class="drop" id="dz">Tap or drop a PDF file here</div>
-    <input type="file" id="fi" class="hidden-input" accept="application/pdf">
-    <div id="flist"></div>
-    <button class="btn-dark" id="run" disabled>Convert & download ZIP</button>
-    <div class="status" id="st"></div>
-  `);
-  let file=null;
-  const dz=document.getElementById('dz'), fi=document.getElementById('fi'), run=document.getElementById('run'), st=document.getElementById('st'), flist=document.getElementById('flist');
-  setupDro
+  merge: {
+    html: `
+      <h2>Merge PDF</h2>
+      <p class="mdesc">Pick two or more PDFs. They'll be combined in the order you select them.</p>
+      <input type="file" id="f" accept="application/pdf" multiple>
+      <button class="btn btn-solid" style="width:100%" id="run">Merge PDFs</button>
+      <div class="status" id="status"></div>
+      <div class="dl" id="dl"></div>`,
+    init(){
+      document.getElementById('run').onclick = async (e)=>{
+        const files = filesOf('f');
+        if(files.length < 2) return setStatus('Choose at least 2 PDF files.', 'err');
+        runBtnBusy(e.target, true, 'Merge PDFs');
+        try{
+          const out = await PDFDocument.create();
+          for(const f of files){
+            const src = await PDFDocument.load(await fileBytes(f), {ignoreEncryption:true});
+            const pages = await out.copyPages(src, src.getPageIndices());
+            pages.forEach(p=>out.addPage(p));
+          }
+          const bytes = await out.save();
+          showDownload(new Blob([bytes], {type:'application/pdf'}), 'merged.pdf');
+          setStatus('Done.', 'ok');
+        }catch(err){ setStatus('Failed: '+err.message, 'err'); }
+        runBtnBusy(e.target, false, 'Merge PDFs');
+      };
+    }
+  },
+
+  split: {
+    html: `
+      <h2>Split PDF</h2>
+      <p class="mdesc">Every page becomes its own PDF, packaged as a ZIP.</p>
+      <input type="file" id="f" accept="application/pdf">
+      <button class="btn btn-solid" style="width:100%" id="run">Split PDF</button>
+      <div class="status" id="status"></div>
+      <div class="dl" id="dl"></div>`,
+    init(){
+      document.getElementById('run').onclick = async (e)=>{
+        const files = filesOf('f');
+        if(!files.length) return setStatus('Choose a PDF file.', 'err');
+        runBtnBusy(e.target, true, 'Split PDF');
+        try{
+          const src = await PDFDocument.load(await fileBytes(files[0]), {ignoreEncryption:true});
+          const zip = new JSZip();
+          const n = src.getPageCount();
+          for(let i=0;i<n;i++){
+            const out = await PDFDocument.create();
+            const [p] = await out.copyPages(src, [i]);
+            out.addPage(p);
+            const bytes = await out.save();
+            zip.file(`page-${String(i+1).padStart(2,'0')}.pdf`, bytes);
+          }
+          const blob = await zip.generateAsync({type:'blob'});
+          showDownload(blob, 'split-pages.zip');
+          setStatus(`Done — ${n} pages.`, 'ok');
+        }catch(err){ setStatus('Failed: '+err.message, 'err'); }
+        runBtnBusy(e.target, false, 'Split PDF');
+      };
+    }
+  },
+
+  organize: {
+    html: `
+      <h2>Organize PDF</h2>
+      <p class="mdesc">Type the new page order, e.g. <code>3,1,2</code> or <code>1-3,7,5</code>. Omit a page number to remove it.</p>
+      <input type="file" id="f" accept="application/pdf">
+      <label>New page order</label>
+      <input type="text" id="order" placeholder="e.g. 3,1,2,4-6">
+      <button class="btn btn-solid" style="width:100%" id="run">Apply order</button>
+      <div class="status" id="status"></div>
+      <div class="dl" id="dl"></div>`,
+    init(){
+      document.getElementById('run').onclick = async (e)=>{
+        const files = filesOf('f');
+        const orderStr = document.getElementById('order').value.trim();
+        if(!files.length) return setStatus('Choose a PDF file.', 'err');
+        if(!orderStr) return setStatus('Type the page order.', 'err');
+        runBtnBusy(e.target, true, 'Apply order');
+        try{
+          const src = await PDFDocument.load(await fileBytes(files[0]), {ignoreEncryption:true});
+          const n = src.getPageCount();
+          const indices = [];
+          orderStr.split(',').forEach(tok=>{
+            tok = tok.trim(); if(!tok) return;
+            if(tok.includes('-')){
+              const [a,b] = tok.split('-').map(x=>parseInt(x.trim(),10));
+              for(let i=a;i<=b;i++) indices.push(i-1);
+            } else indices.push(parseInt(tok,10)-1);
+          });
+          const bad = indices.find(i=>i<0||i>=n);
+          if(bad!==undefined) return setStatus(`Page ${bad+1} is out of range (1–${n}).`, 'err');
+          const out = await PDFDocument.create();
+          const pages = await out.copyPages(src, indices);
+          pages.forEach(p=>out.addPage(p));
+          const bytes = await out.save();
+          showDownload(new Blob([bytes], {type:'application/pdf'}), 'organized.pdf');
+          setStatus('Done.', 'ok');
+        }catch(err){ setStatus('Failed: '+err.message, 'err'); }
+        runBtnBusy(e.target, false, 'Apply order');
+      };
+    }
+  },
+
+  pagenum: {
+    html: `
+      <h2>Page Numbers</h2>
+      <p class="mdesc">Adds a centered page number to the bottom of every page.</p>
+      <input type="file" id="f" accept="application/pdf">
+      <button class="btn btn-solid" style="width:100%" id="run">Add page numbers</button>
+      <div class="status" id="status"></div>
+      <div class="dl" id="dl"></div>`,
+    init(){
+      document.getElementById('run').onclick = async (e)=>{
+        const files = filesOf('f');
+        if(!files.length) return setStatus('Choose a PDF file.', 'err');
+        runBtnBusy(e.target, true, 'Add page numbers');
+        try{
+          const doc = await PDFDocument.load(await fileBytes(files[0]), {ignoreEncryption:true});
+          const font = await doc.embedFont(StandardFonts.Helvetica);
+          const pages = doc.getPages();
+          pages.forEach((p, i)=>{
+            const {width} = p.getSize();
